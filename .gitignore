@@ -1,0 +1,67 @@
+# Environment & Secret Credentials
+.env
+.env.local
+.env.*.local
+*.env
+*.pem
+*.key
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Databases & Vector Storage Data
+*.db
+*.sqlite
+*.sqlite3
+health_insurance.db
+data/chromadb/
+chroma.sqlite3
+
+# Node.js / React Frontend Dependencies & Build Output
+react-frontend/node_modules/
+react-frontend/dist/
+react-frontend/build/
+react-frontend/.env
+react-frontend/.env.local
+node_modules/
+dist/
+build/
+
+# Logs & Debug Outputs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE & Editor Directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Agent / Tool Artifacts
+.agents/
+.system_generated/
