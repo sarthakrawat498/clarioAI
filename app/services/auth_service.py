@@ -25,17 +25,19 @@ def register_user(db: Session, user_in: UserCreate) -> User:
     db.commit()
     db.refresh(user)
 
-    # Initialize default profile
+    # Initialize empty profile for new user
     default_profile = Profile(
         user_id=user.id,
-        age=30,
-        gender="Male",
-        city="Mumbai",
-        city_tier="Tier 1",
+        age=None,
+        gender=None,
+        city=None,
+        city_tier=None,
         pre_existing_diseases="[]",
-        coverage_type="Family Floater",
-        sum_insured_preference=1000000.0,
-        budget_annual_max=25000.0
+        coverage_type=None,
+        family_members_count=None,
+        sum_insured_preference=None,
+        budget_annual_max=None,
+        tobacco_user=False
     )
     db.add(default_profile)
     db.commit()

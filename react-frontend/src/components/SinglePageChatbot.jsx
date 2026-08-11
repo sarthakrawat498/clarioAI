@@ -19,8 +19,85 @@ import {
   Book, 
   ChevronDown, 
   ChevronUp,
-  Shield
+  Shield,
+  Info
 } from 'lucide-react';
+
+const PED_OPTIONS = [
+  "None / No Pre-Existing Conditions",
+  "Diabetes Mellitus",
+  "Hypertension / High BP",
+  "Asthma / Respiratory Conditions",
+  "Thyroid Disorder",
+  "Heart Disease / Cardiac Condition",
+  "Kidney Disease / Renal Disorder",
+  "Cancer / History of Tumor",
+  "Arthritis / Joint Pain",
+  "Gastrointestinal / Liver Condition",
+  "Neurological / Epilepsy",
+];
+
+const COVERAGE_DESCRIPTIONS = {
+  "Individual": {
+    title: "Individual Health Plan",
+    icon: "👤",
+    description:
+      "Dedicated health insurance exclusively for a single policyholder. 100% of the sum insured is reserved for the primary applicant's medical treatment without sharing with family members.",
+  },
+  "Family Floater": {
+    title: "Family Floater Plan",
+    icon: "👨‍👩‍👧‍👦",
+    description:
+      "A single umbrella policy covering multiple family members (spouse, children, dependent parents). The total sum insured floats across all covered members and can be utilized by any member during the policy year.",
+  },
+  "Family Plan": {
+    title: "Family Floater Plan",
+    icon: "👨‍👩‍👧‍👦",
+    description:
+      "A single umbrella policy covering multiple family members (spouse, children, dependent parents). The total sum insured floats across all covered members and can be utilized by any member during the policy year.",
+  },
+  "Senior Citizen": {
+    title: "Senior Citizen Special Cover",
+    icon: "👵👴",
+    description:
+      "Tailored health coverage designed for older adults (typically age 60+). Focuses on age-specific medical risks, pre-existing condition management, cardiac/joint care, and higher hospital allowance needs.",
+  },
+};
+
+// Formats digits into Indian locale format e.g. 1000000 -> "10,00,000"
+const formatINRInput = (value) => {
+  if (value === "" || value === null || value === undefined) return "";
+  const cleanStr = String(value).replace(/[^0-9]/g, "");
+  if (!cleanStr) return "";
+  const num = Number(cleanStr);
+  return num.toLocaleString("en-IN");
+};
+
+// Extracts raw number digits string e.g. "10,00,000" -> "1000000"
+const parseINRInput = (formattedStr) => {
+  if (!formattedStr) return "";
+  return String(formattedStr).replace(/[^0-9]/g, "");
+};
+
+// Helper text for Lakhs / Crores / Thousands e.g. "₹10,00,000 (10 Lakhs)"
+const getINRHelperText = (value) => {
+  const cleanStr = String(value).replace(/[^0-9]/g, "");
+  if (!cleanStr) return "";
+  const num = Number(cleanStr);
+  if (isNaN(num) || num === 0) return "";
+
+  if (num >= 10000000) {
+    const cr = num / 10000000;
+    return `₹${num.toLocaleString("en-IN")} (${cr % 1 === 0 ? cr : cr.toFixed(2)} Crore${cr > 1 ? "s" : ""})`;
+  } else if (num >= 100000) {
+    const lakh = num / 100000;
+    return `₹${num.toLocaleString("en-IN")} (${lakh % 1 === 0 ? lakh : lakh.toFixed(2)} Lakh${lakh > 1 ? "s" : ""})`;
+  } else if (num >= 1000) {
+    const k = num / 1000;
+    return `₹${num.toLocaleString("en-IN")} (${k % 1 === 0 ? k : k.toFixed(2)} Thousand)`;
+  }
+  return `₹${num.toLocaleString("en-IN")}`;
+};
 
 const QUICK_PROMPTS = [
   { text: "💡 Recommend best policy", query: "Can you recommend the top health insurance policy based on my health profile and budget?" },
@@ -54,18 +131,20 @@ export const SinglePageChatbot = () => {
 
   // Profile Form State
   const [profileForm, setProfileForm] = useState({
-    age: 30,
-    gender: 'Male',
-    city: 'Mumbai',
-    city_tier: 'Tier 1',
-    pre_existing_diseases: ['Diabetes'],
-    coverage_type: 'Family Floater',
-    family_members_count: 2,
-    sum_insured_preference: 1000000,
-    budget_annual_max: 25000,
+    age: '',
+    gender: '',
+    city: '',
+    pre_existing_diseases: [],
+    coverage_type: '',
+    family_members_count: '',
+    sum_insured_preference: '',
+    budget_annual_max: '',
+    tobacco_user: false,
   });
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
+  const [drawerPedOpen, setDrawerPedOpen] = useState(false);
+  const drawerPedRef = useRef(null);
 
   // Catalog State
   const [policies, setPolicies] = useState([]);
@@ -86,18 +165,55 @@ export const SinglePageChatbot = () => {
   useEffect(() => {
     if (userProfile) {
       setProfileForm({
-        age: userProfile.age || 30,
-        gender: userProfile.gender || 'Male',
-        city: userProfile.city || 'Mumbai',
-        city_tier: userProfile.city_tier || 'Tier 1',
-        pre_existing_diseases: Array.isArray(userProfile.pre_existing_diseases) ? userProfile.pre_existing_diseases : ['Diabetes'],
-        coverage_type: userProfile.coverage_type || 'Family Floater',
-        family_members_count: userProfile.family_members_count || 2,
-        sum_insured_preference: userProfile.sum_insured_preference || 1000000,
-        budget_annual_max: userProfile.budget_annual_max || 25000,
+        age: userProfile.age !== null && userProfile.age !== undefined ? userProfile.age : '',
+        gender: userProfile.gender || '',
+        city: userProfile.city || '',
+        pre_existing_diseases: Array.isArray(userProfile.pre_existing_diseases) ? userProfile.pre_existing_diseases : [],
+        coverage_type: userProfile.coverage_type || '',
+        family_members_count: userProfile.family_members_count !== null && userProfile.family_members_count !== undefined ? userProfile.family_members_count : '',
+        sum_insured_preference: userProfile.sum_insured_preference !== null && userProfile.sum_insured_preference !== undefined ? userProfile.sum_insured_preference : '',
+        budget_annual_max: userProfile.budget_annual_max !== null && userProfile.budget_annual_max !== undefined ? userProfile.budget_annual_max : '',
+        tobacco_user: !!userProfile.tobacco_user,
       });
     }
   }, [userProfile]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (drawerPedRef.current && !drawerPedRef.current.contains(event.target)) {
+        setDrawerPedOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleDrawerPedToggle = (opt) => {
+    if (opt.startsWith("None")) {
+      setProfileForm((prev) => ({ ...prev, pre_existing_diseases: [] }));
+      return;
+    }
+    setProfileForm((prev) => {
+      const current = prev.pre_existing_diseases || [];
+      const filtered = current.filter((item) => !item.startsWith("None"));
+      if (filtered.includes(opt)) {
+        return { ...prev, pre_existing_diseases: filtered.filter((d) => d !== opt) };
+      } else {
+        return { ...prev, pre_existing_diseases: [...filtered, opt] };
+      }
+    });
+  };
+
+  const removeDrawerPedTag = (tag, e) => {
+    e.stopPropagation();
+    setProfileForm((prev) => ({
+      ...prev,
+      pre_existing_diseases: (prev.pre_existing_diseases || []).filter((t) => t !== tag),
+    }));
+  };
+
+  const isDrawerFamilyCoverage =
+    profileForm.coverage_type === 'Family Floater' || profileForm.coverage_type === 'Family Plan';
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -206,13 +322,16 @@ export const SinglePageChatbot = () => {
     setSavingProfile(true);
     setProfileSuccess(false);
     try {
-      await profileAPI.updateProfile({
+      const payload = {
         ...profileForm,
-        age: Number(profileForm.age),
-        family_members_count: Number(profileForm.family_members_count),
-        sum_insured_preference: Number(profileForm.sum_insured_preference),
-        budget_annual_max: Number(profileForm.budget_annual_max),
-      });
+        age: profileForm.age !== '' ? Number(profileForm.age) : 30,
+        family_members_count: isDrawerFamilyCoverage
+          ? (profileForm.family_members_count !== '' ? Number(profileForm.family_members_count) : 2)
+          : 1,
+        sum_insured_preference: profileForm.sum_insured_preference !== '' ? Number(profileForm.sum_insured_preference) : 1000000,
+        budget_annual_max: profileForm.budget_annual_max !== '' ? Number(profileForm.budget_annual_max) : 25000,
+      };
+      await profileAPI.updateProfile(payload);
       await refreshProfile();
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
@@ -260,7 +379,7 @@ export const SinglePageChatbot = () => {
             style={{ padding: '6px 14px', fontSize: '0.82rem', background: activeDrawer === 'profile' ? 'rgba(16,185,129,0.2)' : '' }}
             onClick={() => setActiveDrawer(activeDrawer === 'profile' ? 'none' : 'profile')}
           >
-            <UserCheck size={16} /> Profile Onboarding
+            <UserCheck size={16} /> Profile Details
           </button>
 
           <button 
@@ -412,12 +531,12 @@ export const SinglePageChatbot = () => {
           </div>
         </main>
 
-        {/* Slide-Over Drawer: Profile Onboarding */}
+        {/* Slide-Over Drawer: Profile Details */}
         {activeDrawer === 'profile' && (
-          <div style={{ position: 'absolute', top: 0, right: 0, width: '420px', height: '100%', background: 'rgba(17, 24, 39, 0.96)', backdropFilter: 'blur(20px)', borderLeft: '1px solid var(--border-highlight)', zIndex: 100, padding: '24px', display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, width: '440px', height: '100%', background: 'rgba(17, 24, 39, 0.96)', backdropFilter: 'blur(20px)', borderLeft: '1px solid var(--border-highlight)', zIndex: 100, padding: '24px', display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <UserCheck size={20} style={{ color: 'var(--cyan)' }} /> Profile Onboarding
+                <UserCheck size={20} style={{ color: 'var(--cyan)' }} /> Profile Details
               </h3>
               <button className="btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setActiveDrawer('none')}>
                 <X size={18} />
@@ -434,44 +553,247 @@ export const SinglePageChatbot = () => {
               <form onSubmit={handleSaveProfile}>
                 <div className="form-group">
                   <label className="form-label">Age</label>
-                  <input type="number" className="form-input" value={profileForm.age} onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })} required />
+                  <input type="number" className="form-input" value={profileForm.age} onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })} placeholder="e.g. 30" required />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">City Tier</label>
-                  <select className="form-select" value={profileForm.city_tier} onChange={(e) => setProfileForm({ ...profileForm, city_tier: e.target.value })}>
-                    <option value="Tier 1">Tier 1 (Metro)</option>
-                    <option value="Tier 2">Tier 2</option>
-                    <option value="Tier 3">Tier 3</option>
+                  <label className="form-label">Gender</label>
+                  <select className="form-select" value={profileForm.gender} onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })} required>
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
                 <div className="form-group">
+                  <label className="form-label">City</label>
+                  <input type="text" className="form-input" value={profileForm.city} onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })} placeholder="e.g. Mumbai" required />
+                </div>
+
+                <div className="form-group">
                   <label className="form-label">Coverage Type</label>
-                  <select className="form-select" value={profileForm.coverage_type} onChange={(e) => setProfileForm({ ...profileForm, coverage_type: e.target.value })}>
+                  <select className="form-select" value={profileForm.coverage_type} onChange={(e) => setProfileForm({ ...profileForm, coverage_type: e.target.value })} required>
+                    <option value="">Select Coverage Type</option>
                     <option value="Individual">Individual</option>
                     <option value="Family Floater">Family Floater</option>
                     <option value="Senior Citizen">Senior Citizen</option>
                   </select>
                 </div>
 
+                {/* Only show Family Members Count when Family Floater / Family Plan is selected */}
+                {isDrawerFamilyCoverage && (
+                  <div className="form-group">
+                    <label className="form-label">Family Members Count</label>
+                    <input type="number" className="form-input" value={profileForm.family_members_count} onChange={(e) => setProfileForm({ ...profileForm, family_members_count: e.target.value })} placeholder="e.g. 2, 4" min="1" required />
+                  </div>
+                )}
+
                 <div className="form-group">
-                  <label className="form-label">Family Members Count</label>
-                  <input type="number" className="form-input" value={profileForm.family_members_count} onChange={(e) => setProfileForm({ ...profileForm, family_members_count: e.target.value })} required />
+                  <label className="form-label">Sum Insured Preference (₹)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formatINRInput(profileForm.sum_insured_preference)}
+                    onChange={(e) => setProfileForm({ ...profileForm, sum_insured_preference: parseINRInput(e.target.value) })}
+                    placeholder="e.g. 10,00,000 (10 Lakhs)"
+                    required
+                  />
+                  {profileForm.sum_insured_preference && (
+                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '4px', fontWeight: 600 }}>
+                      💡 {getINRHelperText(profileForm.sum_insured_preference)}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Max Annual Budget (₹)</label>
-                  <input type="number" className="form-input" value={profileForm.budget_annual_max} onChange={(e) => setProfileForm({ ...profileForm, budget_annual_max: e.target.value })} required />
+                  <label className="form-label">Max Annual Premium Budget (₹)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formatINRInput(profileForm.budget_annual_max)}
+                    onChange={(e) => setProfileForm({ ...profileForm, budget_annual_max: parseINRInput(e.target.value) })}
+                    placeholder="e.g. 25,000 (25 Thousand)"
+                    required
+                  />
+                  {profileForm.budget_annual_max && (
+                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '4px', fontWeight: 600 }}>
+                      💡 {getINRHelperText(profileForm.budget_annual_max)}
+                    </div>
+                  )}
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Pre-Existing Diseases (Comma Separated)</label>
-                  <input type="text" className="form-input" value={profileForm.pre_existing_diseases.join(', ')} onChange={(e) => setProfileForm({ ...profileForm, pre_existing_diseases: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
+                {/* Pre-Existing Diseases: Multi-Select Dropdown */}
+                <div className="form-group" style={{ position: "relative" }} ref={drawerPedRef}>
+                  <label className="form-label">Pre-Existing Diseases (Multi-Select)</label>
+                  <div
+                    className="form-input"
+                    style={{
+                      minHeight: "44px",
+                      height: "auto",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: "6px",
+                      cursor: "pointer",
+                      padding: "8px 12px",
+                      justifyContent: "space-between",
+                    }}
+                    onClick={() => setDrawerPedOpen(!drawerPedOpen)}
+                  >
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", flex: 1 }}>
+                      {(!profileForm.pre_existing_diseases || profileForm.pre_existing_diseases.length === 0) ? (
+                        <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                          Select health conditions...
+                        </span>
+                      ) : (
+                        profileForm.pre_existing_diseases.map((item) => (
+                          <span
+                            key={item}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              background: "rgba(6, 182, 212, 0.2)",
+                              border: "1px solid rgba(6, 182, 212, 0.4)",
+                              color: "#38bdf8",
+                              padding: "3px 8px",
+                              borderRadius: "var(--radius-sm)",
+                              fontSize: "0.78rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {item}
+                            <X
+                              size={14}
+                              style={{ cursor: "pointer" }}
+                              onClick={(e) => removeDrawerPedTag(item, e)}
+                            />
+                          </span>
+                        ))
+                      )}
+                    </div>
+                    <ChevronDown size={16} style={{ color: "var(--text-muted)" }} />
+                  </div>
+
+                  {drawerPedOpen && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        marginTop: "4px",
+                        background: "#0f172a",
+                        border: "1px solid var(--border-highlight)",
+                        borderRadius: "var(--radius-md)",
+                        zIndex: 1000,
+                        maxHeight: "200px",
+                        overflowY: "auto",
+                        padding: "6px",
+                        boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                      }}
+                    >
+                      {PED_OPTIONS.map((opt) => {
+                        const isChecked = opt.startsWith("None")
+                          ? (!profileForm.pre_existing_diseases || profileForm.pre_existing_diseases.length === 0)
+                          : (profileForm.pre_existing_diseases || []).includes(opt);
+                        return (
+                          <div
+                            key={opt}
+                            onClick={() => handleDrawerPedToggle(opt)}
+                            style={{
+                              padding: "8px 12px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "10px",
+                              cursor: "pointer",
+                              borderRadius: "var(--radius-sm)",
+                              fontSize: "0.83rem",
+                              background: isChecked ? "rgba(16, 185, 129, 0.15)" : "transparent",
+                              color: isChecked ? "#34d399" : "var(--text-main)",
+                              marginBottom: "2px",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              readOnly
+                              style={{ cursor: "pointer" }}
+                            />
+                            <span>{opt}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Coverage Type Disclaimer Section at end of the page */}
+                <div
+                  style={{
+                    marginTop: "20px",
+                    marginBottom: "16px",
+                    padding: "14px 16px",
+                    background: "rgba(15, 23, 42, 0.7)",
+                    border: "1px solid var(--border-highlight)",
+                    borderRadius: "var(--radius-md)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      fontWeight: 700,
+                      color: "var(--cyan)",
+                      textTransform: "uppercase",
+                      marginBottom: "6px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <Info size={15} /> Coverage Type Summary & Disclaimer
+                  </div>
+                  {profileForm.coverage_type && COVERAGE_DESCRIPTIONS[profileForm.coverage_type] ? (
+                    <div>
+                      <div
+                        style={{
+                          fontWeight: 800,
+                          fontSize: "0.9rem",
+                          color: "#fff",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        {COVERAGE_DESCRIPTIONS[profileForm.coverage_type].icon}{" "}
+                        {COVERAGE_DESCRIPTIONS[profileForm.coverage_type].title}
+                      </div>
+                      <p
+                        style={{
+                          fontSize: "0.82rem",
+                          color: "var(--text-muted)",
+                          lineHeight: "1.4",
+                          margin: 0,
+                        }}
+                      >
+                        {COVERAGE_DESCRIPTIONS[profileForm.coverage_type].description}
+                      </p>
+                    </div>
+                  ) : (
+                    <p
+                      style={{
+                        fontSize: "0.82rem",
+                        color: "var(--text-muted)",
+                        margin: 0,
+                        fontStyle: "italic",
+                      }}
+                    >
+                      Select a Coverage Type above to view detailed coverage information and policy guidelines.
+                    </p>
+                  )}
                 </div>
 
                 <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '12px' }} disabled={savingProfile}>
-                  <Save size={16} /> {savingProfile ? 'Saving...' : 'Save Profile Context'}
+                  <Save size={16} /> {savingProfile ? 'Saving...' : 'Save Profile Details'}
                 </button>
               </form>
             </div>
