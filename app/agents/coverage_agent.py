@@ -69,17 +69,20 @@ def coverage_agent_node(state: AgentState) -> AgentState:
             llm = ChatOpenAI(**llm_kwargs)
             prompt = (
                 "You are an expert Health Insurance RAG Assistant. Your job is to answer the user's query STRICTLY "
-                "based on the provided policy documents below. DO NOT make up information or use outside assumptions.\n"
-                "For every key statement or clause you present, cite the exact source using format [Company: X, Policy: Y, Page: Z].\n\n"
+                "based on the provided policy documents below. DO NOT make up information or use outside assumptions.\n\n"
                 f"--- RETRIEVED POLICY DOCUMENTS ---\n{combined_context}\n-----------------------------------\n\n"
                 f"User Question: {query}\n\n"
-                "Provide a detailed, professional, structured answer with markdown bullet points and exact citations."
+                "CRITICAL FORMATTING INSTRUCTIONS FOR PRODUCTION VISUALIZATION:\n"
+                "- DO NOT use raw hash header symbols (like #, ##, ###). Use clean bold section titles (e.g. **Coverage Analysis**).\n"
+                "- Structure your answer using clean paragraphs, bullet points (- point), and structured tables where applicable.\n"
+                "- For every key statement or clause you present, cite the exact source using format [Company: X, Policy: Y, Page: Z]."
             )
             res = llm.invoke(prompt)
             answer = res.content.strip()
         except Exception as e:
             logger.warning(f"Coverage Agent LLM call failed: {e}. Using deterministic synthesis.")
             answer = ""
+
 
     if not answer:
         # Deterministic grounded fallback synthesis

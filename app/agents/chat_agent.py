@@ -14,20 +14,40 @@ FAQ_KNOWLEDGE_BASE = {
 }
 
 
+from app.config import settings
+from app.rag.vector_store import vector_store_manager
+from app.agents.state import AgentState
+
+logger = logging.getLogger(__name__)
+
+
 def chat_agent_node(state: AgentState) -> AgentState:
     """
-    Chat Agent: Answers general health insurance questions, terminology, and FAQs.
+    Chat Agent: Answers general health insurance questions, terminology, and FAQs using PDF RAG context & LLM.
     """
-    query = state.get("query", "").lower()
-    
-    answer = ""
-    # Check knowledge base dictionary
-    for key, desc in FAQ_KNOWLEDGE_BASE.items():
-        if key in query:
-            answer = f"Insurance Term Explainer: {key.upper()}\n\n{desc}\n\n*Feel free to ask about specific policies, run a claim check, or compare plans!"
-            break
+    query = state.get("query", "").strip()
 
-    if not answer and settings.OPENAI_API_KEY and len(settings.OPENAI_API_KEY.strip()) > 10:
+    # RAG Vector Search for relevant policy chunks
+    retrieved = vector_store_manager.query(query_text=query, n_results=4)
+    context_blocks = []
+    sources = []
+    for doc in retrieved:
+        citation_str = f"[Company: {doc['company']}, Policy: {doc['policy_name']}, Page: {doc['page']}]"
+        context_blocks.append(f"Source {citation_str}:\n{doc['content']}")
+        sources.append({
+            "company": doc["company"],
+            "policy_name": doc["policy_name"],
+            "page": doc["page"],
+            "chunk_id": doc["chunk_id"],
+            "snippet": doc["content"][:200] + "...",
+            "score": doc["score"]
+        })
+
+    combined_context = "\n\n".join(context_blocks)
+    state["sources"] = sources
+
+    answer = ""
+    if settings.OPENAI_API_KEY and len(settings.OPENAI_API_KEY.strip()) > 10:
         try:
             from langchain_openai import ChatOpenAI
             llm_kwargs = {
@@ -39,9 +59,15 @@ def chat_agent_node(state: AgentState) -> AgentState:
                 llm_kwargs["base_url"] = settings.OPENAI_BASE_URL.strip()
             llm = ChatOpenAI(**llm_kwargs)
             prompt = (
-                "You are an empathetic, expert Indian Health Insurance Assistant. Answer the user's general insurance question "
-                "clearly, accurately, and concisely with markdown formatting.\n\n"
-                f"User Question: {state.get('query')}"
+                "You are an empathetic, highly knowledgeable AI Health Insurance Advisor. "
+                "Answer the user's health insurance question clearly, accurately, and thoroughly for a client-ready, production-level experience.\n\n"
+                f"--- RETRIEVED PDF POLICY CONTEXT ---\n{combined_context if combined_context else 'No specific policy chunk retrieved.'}\n-----------------------------------\n\n"
+                f"User Question: {query}\n\n"
+                "CRITICAL FORMATTING INSTRUCTIONS FOR PRODUCTION VISUALIZATION:\n"
+                "- DO NOT use raw hash header symbols (like #, ##, ###). Use clean bold section titles (e.g. **Coverage Summary**).\n"
+                "- Structure your response using clean paragraphs, bullet points (- item), and plain markdown tables where applicable.\n"
+                "- Provide a direct, well-structured answer with bold key terms for readability.\n"
+                "- If citing specific policy clauses from the context, include exact citations like [Company: X, Policy: Y, Page: Z]."
             )
             res = llm.invoke(prompt)
             answer = res.content.strip()
@@ -49,16 +75,17 @@ def chat_agent_node(state: AgentState) -> AgentState:
             logger.warning(f"ChatAgent LLM call failed: {e}")
             answer = ""
 
+
     if not answer:
         answer = (
-            "Health Insurance AI Assistant\n"
-            "I am here to guide you through your health insurance decisions! You can ask me to:\n"
-            "1. Analyze Coverage: Check room rent limits, co-pay, or waiting periods for HDFC Optima Secure, Star Health, Niva Bupa, or Care Supreme.\n"
-            "2. Compare Policies: View a side-by-side matrix of key features.\n"
-            "3. Get Tailored Recommendations: Score plans matching your age, family size, and pre-existing conditions.\n"
-            "4. Check Claim Eligibility: Estimate approval percentage and out-of-pocket expenses for a treatment."
+            f"### 💡 Health Insurance Assistant\n\n"
+            f"Here is information regarding your query: **\"{query}\"**\n\n"
+            "Health insurance plans differ in their features, coverage terms, room rent limits, and waiting periods. "
+            "You can ask me to compare specific policies (Niva Bupa Aspire, Care Supreme, HDFC Optima Secure, Aditya Birla Activ One) "
+            "or check custom claim scenarios!"
         )
 
     state["final_response"] = answer
-    state["agent_used"] = "ChatAgent"
+    state["agent_used"] = "ChatAgent (RAG Grounded)"
     return state
+

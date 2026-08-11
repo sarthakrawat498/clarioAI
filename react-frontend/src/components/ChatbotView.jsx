@@ -11,8 +11,10 @@ import {
   Stethoscope, 
   Scale, 
   ExternalLink,
-  MessageSquarePlus
+  MessageSquarePlus,
+  Trash2
 } from 'lucide-react';
+
 
 const QUICK_PROMPTS = [
   { text: "🧮 Calculate premium for 35yo in Tier 1 city", query: "Can you calculate my annual estimated premium for age 35, Tier 1 city with Family Floater?" },
@@ -21,6 +23,143 @@ const QUICK_PROMPTS = [
   { text: "⚖️ Compare Star Comprehensive vs HDFC Optima", query: "Compare Star Health Comprehensive vs HDFC ERGO Optima Secure side by side." },
   { text: "📜 What is pre-existing disease waiting period?", query: "What is the standard pre-existing disease (PED) waiting period across policies?" },
 ];
+
+const FormattedMessage = ({ content }) => {
+  if (!content) return null;
+
+  const parseBlocks = (text) => {
+    let cleanText = text.replace(/📖 Policy Excerpt Citations:[\s\S]*$/gi, '').trim();
+    const lines = cleanText.split('\n');
+    const blocks = [];
+    let tableRows = [];
+    let inTable = false;
+    let listItems = [];
+    let inList = false;
+
+    const renderBold = (str) => {
+      const parts = str.split(/(\*\*.*?\*\*|\*.*?\*|__.*?__|`.*?`)/g);
+      return parts.map((part, i) => {
+        if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
+          return <strong key={i} style={{ color: '#f8fafc', fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('*') && part.endsWith('*')) {
+          return <em key={i} style={{ color: '#e2e8f0' }}>{part.slice(1, -1)}</em>;
+        }
+        if (part.startsWith('`') && part.endsWith('`')) {
+          return <code key={i} style={{ background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontSize: '0.82em', fontFamily: 'monospace' }}>{part.slice(1, -1)}</code>;
+        }
+        return part;
+      });
+    };
+
+    const flushList = () => {
+      if (listItems.length > 0) {
+        blocks.push(
+          <ul key={`ul-${blocks.length}`} style={{ margin: '8px 0 12px 18px', paddingLeft: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {listItems.map((item, idx) => (
+              <li key={idx} style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.5' }}>
+                {renderBold(item)}
+              </li>
+            ))}
+          </ul>
+        );
+        listItems = [];
+        inList = false;
+      }
+    };
+
+    const flushTable = () => {
+      if (tableRows.length > 0) {
+        const headerRow = tableRows[0];
+        const bodyRows = tableRows.slice(1).filter(r => !r.every(cell => cell.trim().startsWith('---') || cell.trim() === ''));
+
+        blocks.push(
+          <div key={`table-${blocks.length}`} style={{ overflowX: 'auto', margin: '14px 0', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left', background: 'rgba(15,23,42,0.6)' }}>
+              <thead>
+                <tr style={{ background: 'rgba(30,41,59,0.9)', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+                  {headerRow.map((cell, cIdx) => (
+                    <th key={cIdx} style={{ padding: '10px 14px', color: '#38bdf8', fontWeight: 700 }}>
+                      {renderBold(cell.trim())}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {bodyRows.map((r, rIdx) => (
+                  <tr key={rIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: rIdx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                    {r.map((cell, cIdx) => (
+                      <td key={cIdx} style={{ padding: '9px 14px', color: '#cbd5e1' }}>
+                        {renderBold(cell.trim())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        tableRows = [];
+        inTable = false;
+      }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
+      if (!line) {
+        flushList();
+        flushTable();
+        continue;
+      }
+
+      if (line.startsWith('|') && line.endsWith('|')) {
+        flushList();
+        inTable = true;
+        const cells = line.split('|').slice(1, -1);
+        tableRows.push(cells);
+        continue;
+      } else if (inTable) {
+        flushTable();
+      }
+
+      if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ') || /^\d+\.\s/.test(line)) {
+        inList = true;
+        const itemContent = line.replace(/^(-|\*|•|\d+\.)\s*/, '');
+        listItems.push(itemContent);
+        continue;
+      } else if (inList) {
+        flushList();
+      }
+
+      if (line.startsWith('#')) {
+        const headerText = line.replace(/^#+\s*/, '');
+        const level = line.match(/^#+/)[0].length;
+
+        if (level === 1) {
+          blocks.push(<h2 key={`h1-${blocks.length}`} style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', margin: '14px 0 8px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px' }}>{renderBold(headerText)}</h2>);
+        } else if (level === 2) {
+          blocks.push(<h3 key={`h2-${blocks.length}`} style={{ fontSize: '1.08rem', fontWeight: 700, color: '#38bdf8', margin: '12px 0 6px 0' }}>{renderBold(headerText)}</h3>);
+        } else {
+          blocks.push(<h4 key={`h3-${blocks.length}`} style={{ fontSize: '0.96rem', fontWeight: 700, color: '#34d399', margin: '10px 0 4px 0' }}>{renderBold(headerText)}</h4>);
+        }
+        continue;
+      }
+
+      blocks.push(
+        <p key={`p-${blocks.length}`} style={{ margin: '6px 0 10px 0', lineHeight: '1.6', color: '#cbd5e1', fontSize: '0.92rem' }}>
+          {renderBold(line)}
+        </p>
+      );
+    }
+
+    flushList();
+    flushTable();
+
+    return blocks;
+  };
+
+  return <div className="formatted-msg-container">{parseBlocks(content)}</div>;
+};
 
 export const ChatbotView = ({ onNavigate }) => {
   const [messages, setMessages] = useState([
@@ -61,6 +200,20 @@ export const ChatbotView = ({ onNavigate }) => {
     }
   };
 
+  const handleDeleteSession = async (e, idToDelete) => {
+    e.stopPropagation();
+    try {
+      await chatAPI.deleteSession(idToDelete);
+      setSessions((prev) => prev.filter((s) => s.id !== idToDelete));
+      if (sessionId === idToDelete) {
+        startNewChat();
+      }
+    } catch (err) {
+      console.error('Delete session error:', err);
+    }
+  };
+
+
   const handleSend = async (queryText = null) => {
     const textToSend = queryText || inputQuery;
     if (!textToSend.trim() || loading) return;
@@ -100,7 +253,7 @@ export const ChatbotView = ({ onNavigate }) => {
           id: Date.now() + 1,
           sender: 'assistant',
           agent_name: 'Error',
-          content: 'Sorry, I encountered an issue communicating with the AI multi-agent service. Please ensure the backend server on port 8001 is online.',
+          content: 'Unable to reach backend server. Please verify FastAPI service is running.',
         }
       ]);
     } finally {
@@ -158,45 +311,55 @@ export const ChatbotView = ({ onNavigate }) => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={startNewChat}>
-            <MessageSquarePlus size={16} /> New Chat
-          </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
           <button 
             className="btn-secondary" 
-            style={{ padding: '6px 12px', fontSize: '0.8rem', background: showHistory ? 'rgba(16, 185, 129, 0.15)' : '' }} 
             onClick={() => setShowHistory(!showHistory)}
+            style={{ fontSize: '0.8rem', padding: '6px 12px' }}
           >
             <History size={16} /> History ({sessions.length})
+          </button>
+          <button 
+            className="btn-primary" 
+            onClick={startNewChat}
+            style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+          >
+            <MessageSquarePlus size={16} /> New Chat
           </button>
         </div>
       </div>
 
-      {/* History Drawer Overlay */}
+      {/* History Slide-over Drawer */}
       {showHistory && (
-        <div className="glass-card" style={{ padding: '16px', border: '1px solid var(--border-highlight)' }}>
-          <h4 style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--text-muted)' }}>Past Chat Sessions</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+        <div className="history-drawer">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Past Chat Sessions</span>
+            <button className="btn-secondary" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={() => setShowHistory(false)}>Close</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
             {sessions.length === 0 ? (
               <span style={{ fontSize: '0.82rem', color: 'var(--text-dim)' }}>No prior chat sessions found.</span>
             ) : (
               sessions.map((s) => (
-                <button
+                <div
                   key={s.id}
                   onClick={() => loadSession(s)}
-                  className="sidebar-nav-item"
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '0.82rem',
-                    background: s.id === sessionId ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.03)',
-                  }}
+                  className={`history-item ${s.id === sessionId ? 'active' : ''}`}
                 >
-                  <Bot size={14} />
-                  <span style={{ flex: 1, textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  <Bot size={14} style={{ flexShrink: 0, color: 'var(--cyan)' }} />
+                  <span className="history-item-title">
                     {s.session_title || `Chat Session #${s.id}`}
                   </span>
-                </button>
+                  <button
+                    className="delete-session-btn"
+                    onClick={(e) => handleDeleteSession(e, s.id)}
+                    title="Delete chat session"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               ))
+
             )}
           </div>
         </div>
@@ -214,7 +377,7 @@ export const ChatbotView = ({ onNavigate }) => {
                 </div>
               )}
 
-              <div style={{ whiteSpace: 'pre-line' }}>{msg.content}</div>
+              <FormattedMessage content={msg.content} />
 
               {/* RAG Sources rendering */}
               {msg.sources && msg.sources.length > 0 && (

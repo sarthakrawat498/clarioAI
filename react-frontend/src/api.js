@@ -1,17 +1,14 @@
 import axios from 'axios';
 
-// Default to port 8001, but allow switching to 8000 if needed
-let currentBaseUrl = 'http://127.0.0.1:8001/api/v1';
-
 const apiClient = axios.create({
-  baseURL: currentBaseUrl,
+  baseURL: 'http://127.0.0.1:8001/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 35000,
+  timeout: 60000,
 });
 
-// Request interceptor to attach Authorization token and attempt port fallback
+// Request interceptor to attach Authorization token
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -22,24 +19,6 @@ apiClient.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-// Response interceptor to attempt fallback port 8000 if 8001 network error occurs
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if (error.code === 'ERR_NETWORK' && !originalRequest._retryPort) {
-      originalRequest._retryPort = true;
-      const altUrl = originalRequest.baseURL.includes(':8001')
-        ? originalRequest.baseURL.replace(':8001', ':8000')
-        : originalRequest.baseURL.replace(':8000', ':8001');
-      
-      originalRequest.baseURL = altUrl;
-      apiClient.defaults.baseURL = altUrl;
-      return apiClient(originalRequest);
-    }
-    return Promise.reject(error);
-  }
-);
 
 export const authAPI = {
   register: async (full_name, email, password) => {
@@ -78,7 +57,16 @@ export const chatAPI = {
     const response = await apiClient.get('/chat/sessions');
     return response.data;
   },
+  deleteSession: async (sessionId) => {
+    const response = await apiClient.delete(`/chat/sessions/${sessionId}`);
+    return response.data;
+  },
+  clearAllSessions: async () => {
+    const response = await apiClient.delete('/chat/sessions');
+    return response.data;
+  },
 };
+
 
 export const policyAPI = {
   getPolicies: async () => {

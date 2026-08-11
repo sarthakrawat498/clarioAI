@@ -150,55 +150,100 @@ def _static_candidates() -> List[Dict[str, Any]]:
     ]
 
 
+from app.config import settings
+from app.rag.vector_store import vector_store_manager
+
 def sales_agent_node(state: AgentState) -> AgentState:
     """
-    Sales Agent: Computes multi-attribute policy match scores based on user profile,
-    ranks recommendations, and suggests optional add-on riders.
+    Sales & Actuarial Agent: Evaluates user query, computes policy match scores,
+    calculates premium estimates, and synthesizes dynamic LLM responses using RAG context.
     """
+    query = state.get("query", "").strip()
     profile = state.get("user_profile", {}) or {}
     age = profile.get("age", 30)
     budget = profile.get("budget_annual_max", 25000)
     peds = profile.get("pre_existing_diseases", [])
     if isinstance(peds, str):
-        import json
         try:
             peds = json.loads(peds)
         except Exception:
             peds = [peds] if peds else []
 
-    candidates = []
     policy_catalog = state.get("policy_catalog") or []
+    candidates = []
     if policy_catalog:
         for policy in policy_catalog:
             candidates.append(_build_dynamic_candidate(policy, age, budget, peds))
     else:
         candidates = _static_candidates()
 
-    # Adjust scores dynamically based on profile
     scored = []
     for plan in candidates:
         plan["match_score"] = min(99, max(60, int(plan["base_score"])))
         scored.append(plan)
 
     scored.sort(key=lambda x: x["match_score"], reverse=True)
-    top_plans = scored[:3]
+    top_plans = scored[:4]
 
-    response_lines = [
-        "Top AI Recommended Health Insurance Plans",
-        f"Based on your profile (Age {age}, Budget ₹{budget:,.0f}, PED: {', '.join(peds) if peds else 'None'}), "
-        "here are your top matched health insurance policies:\n"
-    ]
+    # Perform RAG Search for context
+    retrieved = vector_store_manager.query(query_text=query, n_results=4)
+    rag_context = "\n".join([f"- [{doc['company']} {doc['policy_name']} P{doc['page']}]: {doc['content'][:250]}" for doc in retrieved])
 
-    for idx, plan in enumerate(top_plans, start=1):
-        response_lines.append(f"{idx}. {plan['insurer_name']} - {plan['policy_name']} (Match Score: {plan['match_score']}%)")
-        response_lines.append(f"- Est. Annual Premium: ₹{plan['est_premium']:,.0f}")
-        response_lines.append(f"- Best Suited For: {plan['suitable_for']}")
-        response_lines.append(f"- Key Features: {', '.join(plan['highlights'])}")
-        response_lines.append(f"- Recommended Riders: {', '.join(plan['riders'])}\n")
+    # LLM Dynamic Answer Generation
+    answer = ""
+    if settings.OPENAI_API_KEY and len(settings.OPENAI_API_KEY.strip()) > 10:
+        try:
+            from langchain_openai import ChatOpenAI
+            llm_kwargs = {
+                "model": settings.effective_model,
+                "openai_api_key": settings.OPENAI_API_KEY,
+                "temperature": 0.2
+            }
+            if settings.OPENAI_BASE_URL and len(settings.OPENAI_BASE_URL.strip()) > 5:
+                llm_kwargs["base_url"] = settings.OPENAI_BASE_URL.strip()
+            llm = ChatOpenAI(**llm_kwargs)
 
-    response_lines.append("Would you like to run a side-by-side comparison of these plans or check custom claim scenarios?")
+            prompt = (
+                "You are an expert AI Health Insurance Sales & Actuarial Consultant. Answer the user's specific request "
+                "clearly, accurately, and dynamically for a client-ready, production-level user experience.\n\n"
+                f"User Question: {query}\n"
+                f"User Profile: Age: {age}, Annual Budget: ₹{budget:,.0f}, Pre-Existing Diseases: {', '.join(peds) if peds else 'None'}\n"
+                f"Available Policy Catalog (Discovered PDF Policies):\n{json.dumps(top_plans, indent=2)}\n\n"
+                f"Relevant PDF Policy Excerpts (RAG Context):\n{rag_context}\n\n"
+                "CRITICAL FORMATTING INSTRUCTIONS FOR PRODUCTION VISUALIZATION:\n"
+                "- DO NOT use raw hash header symbols (like #, ##, ###). Use clean bold section titles (e.g. **Top Recommended Policies**).\n"
+                "- Structure your answer using clean paragraphs, bullet points (- point), and structured markdown tables (| Column 1 | Column 2 |).\n"
+                "- If the user asks for a premium estimate or pricing, provide an estimated premium breakdown table for the top policies based on their age and sum insured.\n"
+                "- If the user asks for recommendations, rank the top policies matching their profile with match scores and key features.\n"
+                "- Make the formatting executive-ready, highly readable, and professional.\n"
+                "- Cite exact sources if referencing specific clauses [Company: X, Policy: Y, Page: Z]."
+            )
+            res = llm.invoke(prompt)
+            answer = res.content.strip()
+        except Exception as e:
+            logger.warning(f"SalesAgent LLM call failed: {e}")
 
-    state["final_response"] = "\n".join(response_lines)
+
+    if not answer:
+        # Fallback response generator
+        response_lines = [
+            "### 🛡️ Top AI Recommended Health Insurance Plans",
+            f"Based on your profile (Age {age}, Budget ₹{budget:,.0f}, PED: {', '.join(peds) if peds else 'None'}), "
+            "here are your top matched health insurance policies:\n"
+        ]
+
+        for idx, plan in enumerate(top_plans, start=1):
+            response_lines.append(f"#### {idx}. {plan['insurer_name']} - {plan['policy_name']} (Match Score: {plan['match_score']}%)")
+            response_lines.append(f"- **Est. Annual Premium:** ₹{plan['est_premium']:,.0f}")
+            response_lines.append(f"- **Best Suited For:** {plan['suitable_for']}")
+            response_lines.append(f"- **Key Features:** {', '.join(plan['highlights'])}")
+            response_lines.append(f"- **Recommended Riders:** {', '.join(plan['riders'])}\n")
+
+        response_lines.append("Would you like to run a side-by-side comparison of these plans or check custom claim scenarios?")
+        answer = "\n".join(response_lines)
+
+    state["final_response"] = answer
     state["recommended_policies"] = top_plans
-    state["agent_used"] = "SalesAgent"
+    state["agent_used"] = "SalesAgent (AI Actuarial & RAG)"
     return state
+

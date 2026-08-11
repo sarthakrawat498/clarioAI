@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.auth import UserCreate, UserLogin, Token, UserOut
@@ -16,9 +17,36 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(login_in: UserLogin, db: Session = Depends(get_db)):
-    """Authenticate user and obtain JWT token."""
-    return authenticate_user(db, login_in.email, login_in.password)
+async def login(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Authenticate user and obtain JWT token (supports both JSON body and OAuth2 Form Data)."""
+    email = None
+    password = None
+
+    content_type = request.headers.get("content-type", "")
+
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            email = body.get("email") or body.get("username")
+            password = body.get("password")
+        except Exception:
+            pass
+    else:
+        try:
+            form = await request.form()
+            email = form.get("username") or form.get("email")
+            password = form.get("password")
+        except Exception:
+            pass
+
+    if not email or not password:
+        raise HTTPException(status_code=422, detail="Email and Password are required")
+
+    return authenticate_user(db, str(email), str(password))
+
 
 
 @router.get("/me", response_model=UserOut)

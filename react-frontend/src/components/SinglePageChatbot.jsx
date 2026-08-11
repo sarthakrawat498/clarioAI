@@ -19,8 +19,10 @@ import {
   Book, 
   ChevronDown, 
   ChevronUp,
-  Shield
+  Shield,
+  Trash2
 } from 'lucide-react';
+
 
 const QUICK_PROMPTS = [
   { text: "💡 Recommend best policy", query: "Can you recommend the top health insurance policy based on my health profile and budget?" },
@@ -30,6 +32,149 @@ const QUICK_PROMPTS = [
   { text: "📜 What is PED waiting period?", query: "What is the standard pre-existing disease (PED) waiting period across policies?" },
   { text: "📊 Show policy catalogue", query: "What health insurance policies are available in the catalogue?" },
 ];
+
+const FormattedMessage = ({ content }) => {
+  if (!content) return null;
+
+  const parseBlocks = (text) => {
+    // Strip trailing citation placeholder text if already formatted in sources
+    let cleanText = text.replace(/📖 Policy Excerpt Citations:[\s\S]*$/gi, '').trim();
+
+    const lines = cleanText.split('\n');
+    const blocks = [];
+    let tableRows = [];
+    let inTable = false;
+    let listItems = [];
+    let inList = false;
+
+    const renderBold = (str) => {
+      const parts = str.split(/(\*\*.*?\*\*|\*.*?\*|__.*?__|`.*?`)/g);
+      return parts.map((part, i) => {
+        if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
+          return <strong key={i} style={{ color: '#f8fafc', fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('*') && part.endsWith('*')) {
+          return <em key={i} style={{ color: '#e2e8f0' }}>{part.slice(1, -1)}</em>;
+        }
+        if (part.startsWith('`') && part.endsWith('`')) {
+          return <code key={i} style={{ background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontSize: '0.82em', fontFamily: 'monospace' }}>{part.slice(1, -1)}</code>;
+        }
+        return part;
+      });
+    };
+
+    const flushList = () => {
+      if (listItems.length > 0) {
+        blocks.push(
+          <ul key={`ul-${blocks.length}`} style={{ margin: '8px 0 12px 18px', paddingLeft: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {listItems.map((item, idx) => (
+              <li key={idx} style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.5' }}>
+                {renderBold(item)}
+              </li>
+            ))}
+          </ul>
+        );
+        listItems = [];
+        inList = false;
+      }
+    };
+
+    const flushTable = () => {
+      if (tableRows.length > 0) {
+        const headerRow = tableRows[0];
+        const bodyRows = tableRows.slice(1).filter(r => !r.every(cell => cell.trim().startsWith('---') || cell.trim() === ''));
+
+        blocks.push(
+          <div key={`table-${blocks.length}`} style={{ overflowX: 'auto', margin: '14px 0', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left', background: 'rgba(15,23,42,0.6)' }}>
+              <thead>
+                <tr style={{ background: 'rgba(30,41,59,0.9)', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+                  {headerRow.map((cell, cIdx) => (
+                    <th key={cIdx} style={{ padding: '10px 14px', color: '#38bdf8', fontWeight: 700 }}>
+                      {renderBold(cell.trim())}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {bodyRows.map((r, rIdx) => (
+                  <tr key={rIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: rIdx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                    {r.map((cell, cIdx) => (
+                      <td key={cIdx} style={{ padding: '9px 14px', color: '#cbd5e1' }}>
+                        {renderBold(cell.trim())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        tableRows = [];
+        inTable = false;
+      }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
+      if (!line) {
+        flushList();
+        flushTable();
+        continue;
+      }
+
+      // Check for Table Row
+      if (line.startsWith('|') && line.endsWith('|')) {
+        flushList();
+        inTable = true;
+        const cells = line.split('|').slice(1, -1);
+        tableRows.push(cells);
+        continue;
+      } else if (inTable) {
+        flushTable();
+      }
+
+      // Check for List Item
+      if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ') || /^\d+\.\s/.test(line)) {
+        inList = true;
+        const itemContent = line.replace(/^(-|\*|•|\d+\.)\s*/, '');
+        listItems.push(itemContent);
+        continue;
+      } else if (inList) {
+        flushList();
+      }
+
+      // Check for Headers (#, ##, ###)
+      if (line.startsWith('#')) {
+        const headerText = line.replace(/^#+\s*/, '');
+        const level = line.match(/^#+/)[0].length;
+
+        if (level === 1) {
+          blocks.push(<h2 key={`h1-${blocks.length}`} style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', margin: '14px 0 8px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px' }}>{renderBold(headerText)}</h2>);
+        } else if (level === 2) {
+          blocks.push(<h3 key={`h2-${blocks.length}`} style={{ fontSize: '1.08rem', fontWeight: 700, color: '#38bdf8', margin: '12px 0 6px 0' }}>{renderBold(headerText)}</h3>);
+        } else {
+          blocks.push(<h4 key={`h3-${blocks.length}`} style={{ fontSize: '0.96rem', fontWeight: 700, color: '#34d399', margin: '10px 0 4px 0' }}>{renderBold(headerText)}</h4>);
+        }
+        continue;
+      }
+
+      // Normal Paragraph
+      blocks.push(
+        <p key={`p-${blocks.length}`} style={{ margin: '6px 0 10px 0', lineHeight: '1.6', color: '#cbd5e1', fontSize: '0.92rem' }}>
+          {renderBold(line)}
+        </p>
+      );
+    }
+
+    flushList();
+    flushTable();
+
+    return blocks;
+  };
+
+  return <div className="formatted-msg-container">{parseBlocks(content)}</div>;
+};
 
 export const SinglePageChatbot = () => {
   const { user, userProfile, logout, refreshProfile } = useAuth();
@@ -108,16 +253,41 @@ export const SinglePageChatbot = () => {
       const data = await chatAPI.getSessions();
       setSessions(data || []);
     } catch (e) {
-      console.warn('Could not fetch chat history sessions');
+      console.warn('Could not load chat sessions:', e);
     }
   };
+
+  const handleDeleteSession = async (e, idToDelete) => {
+    e.stopPropagation();
+    try {
+      await chatAPI.deleteSession(idToDelete);
+      setSessions((prev) => prev.filter((s) => s.id !== idToDelete));
+      if (sessionId === idToDelete) {
+        startNewChat();
+      }
+    } catch (err) {
+      console.error('Delete session error:', err);
+    }
+  };
+
+  const handleClearAllSessions = async () => {
+    if (!window.confirm('Are you sure you want to delete all past chat history?')) return;
+    try {
+      await chatAPI.clearAllSessions();
+      setSessions([]);
+      startNewChat();
+    } catch (err) {
+      console.error('Clear all sessions error:', err);
+    }
+  };
+
 
   const fetchPolicies = async () => {
     try {
       const data = await policyAPI.getPolicies();
       setPolicies(data || []);
     } catch (e) {
-      console.warn('Could not fetch policies');
+      console.warn('Could not load policies:', e);
     }
   };
 
@@ -126,7 +296,7 @@ export const SinglePageChatbot = () => {
       const data = await faqAPI.getFaqs();
       setFaqs(data || []);
     } catch (e) {
-      console.warn('Could not fetch FAQs');
+      console.warn('Could not load faqs:', e);
     }
   };
 
@@ -134,13 +304,13 @@ export const SinglePageChatbot = () => {
     const textToSend = queryText || inputQuery;
     if (!textToSend.trim() || loading) return;
 
-    const userMsg = {
-      id: Date.now(),
+    const userMessage = {
+      id: 'usr-' + Date.now(),
       sender: 'user',
       content: textToSend,
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMessage]);
     if (!queryText) setInputQuery('');
     setLoading(true);
 
@@ -148,23 +318,25 @@ export const SinglePageChatbot = () => {
       const res = await chatAPI.sendQuery(textToSend, sessionId);
       if (res.session_id) setSessionId(res.session_id);
 
-      const assistantMsg = {
-        id: Date.now() + 1,
+      const assistantMessage = {
+        id: 'ast-' + Date.now(),
         sender: 'assistant',
-        agent_name: res.agent_used || 'Multi-Agent Advisor',
+        agent_name: res.agent_used || 'Multi-Agent Assistant',
+        intent: res.intent,
         content: res.message,
         sources: res.sources || [],
         recommended_policies: res.recommended_policies,
+        comparison_table: res.comparison_table,
       };
 
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages((prev) => [...prev, assistantMessage]);
       fetchSessions();
     } catch (err) {
-      console.error('Chat query error:', err);
+      console.error('Chat error:', err);
       setMessages((prev) => [
         ...prev,
         {
-          id: Date.now() + 1,
+          id: 'err-' + Date.now(),
           sender: 'assistant',
           agent_name: 'Error',
           content: 'Unable to reach backend server. Please verify FastAPI service is running.',
@@ -300,25 +472,41 @@ export const SinglePageChatbot = () => {
             <Plus size={18} /> New Chat Session
           </button>
 
-          <div style={{ padding: '0 8px 8px', color: 'var(--text-dim)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
-            Past Conversations ({sessions.length})
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', padding: '0 4px' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <History size={13} style={{ color: 'var(--cyan)' }} /> Past Conversations ({sessions.length})
+            </div>
+            {sessions.length > 0 && (
+              <button
+                onClick={handleClearAllSessions}
+                style={{ background: 'transparent', border: 'none', color: '#fb7185', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                title="Clear all chat history"
+              >
+                <Trash2 size={12} /> Clear All
+              </button>
+            )}
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', flex: 1 }}>
             {sessions.map((s) => (
-              <button
+              <div
                 key={s.id}
-                className={`sidebar-nav-item ${s.id === sessionId ? 'active' : ''}`}
+                className={`history-item ${sessionId === s.id ? 'active' : ''}`}
                 onClick={() => loadSession(s)}
-                style={{ padding: '10px 12px', fontSize: '0.82rem' }}
               >
-                <Bot size={16} style={{ flexShrink: 0 }} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left', flex: 1 }}>
-                  {s.session_title || `Chat #${s.id}`}
-                </span>
-              </button>
+                <Bot size={15} style={{ flexShrink: 0, color: 'var(--cyan)' }} />
+                <span className="history-item-title">{s.session_title}</span>
+                <button
+                  className="delete-session-btn"
+                  onClick={(e) => handleDeleteSession(e, s.id)}
+                  title="Delete chat session"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             ))}
           </div>
+
 
           <div style={{ paddingTop: '16px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
@@ -340,7 +528,7 @@ export const SinglePageChatbot = () => {
                     </div>
                   )}
 
-                  <div style={{ whiteSpace: 'pre-line' }}>{msg.content}</div>
+                  <FormattedMessage content={msg.content} />
 
                   {/* Sources citation list */}
                   {msg.sources && msg.sources.length > 0 && (

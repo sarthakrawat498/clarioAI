@@ -4,7 +4,7 @@ import re
 from typing import Any, Dict, List
 from sqlalchemy.orm import Session
 from app.models.policy import PolicyCatalog
-from app.rag.seed_docs import discover_policy_documents, seed_policy_documents
+from app.rag.seed_docs import discover_policy_documents, seed_policy_documents, _read_document_text
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +14,8 @@ def _normalize_key(value: str) -> str:
 
 
 def _read_text(file_path: str) -> str:
-    with open(file_path, "r", encoding="utf-8") as file_handle:
-        return file_handle.read()
+    return _read_document_text(file_path)
+
 
 
 def _extract_first_match(text: str, patterns: List[str], default: str = "") -> str:
