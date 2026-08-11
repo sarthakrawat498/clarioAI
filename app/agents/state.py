@@ -18,5 +18,6 @@ class AgentState(TypedDict):
     agent_used: str
     recommended_policies: Optional[List[Dict[str, Any]]]
     comparison_table: Optional[Dict[str, Any]]
+    policy_catalog: Optional[List[Dict[str, Any]]]
     filter_company: Optional[str]
     filter_policy: Optional[str]

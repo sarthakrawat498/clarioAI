@@ -7,7 +7,7 @@ from chromadb.config import Settings as ChromaSettings
 
 from langchain_core.documents import Document
 from app.config import settings
-from app.rag.seed_docs import POLICY_DOCUMENTS, seed_policy_documents, SAMPLE_DOCS_DIR
+from app.rag.seed_docs import discover_policy_documents, seed_policy_documents
 from app.rag.pdf_loader import load_and_split_policy_file
 
 logger = logging.getLogger(__name__)
@@ -57,12 +57,15 @@ class VectorStoreManager:
             logger.info(f"Vector store already contains {count} documents. Skipping auto-ingest.")
             return
 
-        logger.info("Seeding sample health insurance policy documents into ChromaDB...")
-        seed_policy_documents()
+        logger.info("Seeding discovered health insurance policy documents into ChromaDB...")
+        policy_documents = discover_policy_documents()
+        if not policy_documents:
+            seed_policy_documents()
+            policy_documents = discover_policy_documents()
 
         total_chunks = 0
-        for doc_info in POLICY_DOCUMENTS:
-            file_path = os.path.join(SAMPLE_DOCS_DIR, doc_info["filename"])
+        for doc_info in policy_documents:
+            file_path = doc_info["file_path"]
             chunks = load_and_split_policy_file(
                 file_path=file_path,
                 company=doc_info["company"],

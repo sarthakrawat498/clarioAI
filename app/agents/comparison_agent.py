@@ -65,22 +65,58 @@ COMPARISON_BENCHMARKS = {
 }
 
 
+def _build_dynamic_comparison_benchmarks(policy_catalog: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    benchmarks = {}
+    for policy in policy_catalog:
+        key = f"{policy.get('insurer_name', 'Unknown')} {policy.get('policy_name', 'Policy')}"
+        benchmarks[key] = {
+            "insurer": policy.get("insurer_name", "Unknown"),
+            "policy_name": policy.get("policy_name", "Policy"),
+            "room_rent": policy.get("room_rent_limit", "N/A"),
+            "co_pay": f"{policy.get('co_pay_percentage', 0.0)}%",
+            "ped_waiting": f"{policy.get('ped_waiting_period_months', 36)} Months",
+            "restoration": policy.get("restoration_benefit", "N/A"),
+            "no_claim_bonus": policy.get("no_claim_bonus", "N/A"),
+            "pre_post_days": f"{policy.get('pre_hospitalization_days', 60)} Days / {policy.get('post_hospitalization_days', 180)} Days",
+            "daycare_robotic": "Covered" if policy.get("daycare_treatments_covered", True) else "Not Specified",
+            "air_ambulance": "Covered" if policy.get("air_ambulance_cover", True) else "Not Specified",
+            "est_premium_30yr_10l": f"₹{float(policy.get('base_annual_premium_estimate') or 0):,.0f} / year",
+            "highlight": policy.get("description", "Dynamic policy discovered from sample policy files."),
+            "claim_settlement_ratio": float(policy.get("claim_settlement_ratio") or 0.0),
+            "network_hospitals_count": int(policy.get("network_hospitals_count") or 0),
+        }
+    return benchmarks
+
+
 def comparison_agent_node(state: AgentState) -> AgentState:
     """
     Comparison Agent: Generates side-by-side policy matrix comparing top health plans.
     """
     query = state.get("query", "").lower()
+    policy_catalog = state.get("policy_catalog") or []
+    comparison_benchmarks = _build_dynamic_comparison_benchmarks(policy_catalog) if policy_catalog else COMPARISON_BENCHMARKS
     
     # Identify target policies from query or pick default top 3
     selected_keys = []
-    for key in COMPARISON_BENCHMARKS:
+    for key in comparison_benchmarks:
         policy_words = key.lower().split()
         if any(w in query for w in policy_words if len(w) > 3):
             if key not in selected_keys:
                 selected_keys.append(key)
 
     if len(selected_keys) < 2:
-        selected_keys = ["HDFC ERGO Optima Secure", "Care Health Supreme", "Star Health Optima Restore"]
+        if policy_catalog:
+            ranked = sorted(
+                comparison_benchmarks.items(),
+                key=lambda item: (
+                    item[1].get("claim_settlement_ratio", 0.0),
+                    item[1].get("network_hospitals_count", 0),
+                ),
+                reverse=True,
+            )
+            selected_keys = [key for key, _ in ranked[:3]]
+        else:
+            selected_keys = ["HDFC ERGO Optima Secure", "Care Health Supreme", "Star Health Optima Restore"]
 
     matrix = {}
     params = [
@@ -98,7 +134,7 @@ def comparison_agent_node(state: AgentState) -> AgentState:
     ]
 
     for label, field in params:
-        matrix[label] = {p_key: COMPARISON_BENCHMARKS[p_key][field] for p_key in selected_keys}
+        matrix[label] = {p_key: comparison_benchmarks[p_key][field] for p_key in selected_keys}
 
     # Markdown Table Generation
     headers = ["Feature / Parameter"] + selected_keys
@@ -110,16 +146,29 @@ def comparison_agent_node(state: AgentState) -> AgentState:
     ]
 
     for label, field in params:
-        row_vals = [COMPARISON_BENCHMARKS[p_key][field] for p_key in selected_keys]
+        row_vals = [comparison_benchmarks[p_key][field] for p_key in selected_keys]
         table_lines.append(f"| **{label}** | " + " | ".join(row_vals) + " |")
 
     table_lines.extend([
         "",
         "#### 💡 Expert Recommendation & Verdict:",
-        "- **Best overall feature richness**: **HDFC ERGO Optima Secure** (Provides instant 2x coverage & consumable protection).",
-        "- **Best for high bonus accumulation**: **Care Health Supreme** (Up to 500% cumulative bonus super).",
-        "- **Best for young buyers**: **Niva Bupa ReAssure 2.0** (Lock-the-premium guarantees constant pricing until first claim)."
     ])
+
+    if policy_catalog and selected_keys:
+        top_policy = selected_keys[0]
+        second_policy = selected_keys[1] if len(selected_keys) > 1 else selected_keys[0]
+        third_policy = selected_keys[2] if len(selected_keys) > 2 else second_policy
+        table_lines.extend([
+            f"- **Best overall feature richness**: **{top_policy}** (Highest combined coverage, network, and premium balance).",
+            f"- **Best for value and affordability**: **{second_policy}** (Strong features relative to premium).",
+            f"- **Best network / fallback option**: **{third_policy}** (Broad cashless coverage and balanced benefits)."
+        ])
+    else:
+        table_lines.extend([
+            "- **Best overall feature richness**: **HDFC ERGO Optima Secure** (Provides instant 2x coverage & consumable protection).",
+            "- **Best for high bonus accumulation**: **Care Health Supreme** (Up to 500% cumulative bonus super).",
+            "- **Best for young buyers**: **Niva Bupa ReAssure 2.0** (Lock-the-premium guarantees constant pricing until first claim)."
+        ])
 
     state["final_response"] = "\n".join(table_lines)
     state["comparison_table"] = matrix

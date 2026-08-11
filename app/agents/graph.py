@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
 from langgraph.graph import StateGraph, END
 
 from app.agents.state import AgentState
@@ -75,6 +75,7 @@ agent_graph = build_health_insurance_graph()
 def run_agent_workflow(
     query: str,
     user_profile: Dict[str, Any] = None,
+    policy_catalog: List[Dict[str, Any]] = None,
     filter_company: str = None,
     filter_policy: str = None
 ) -> AgentState:
@@ -90,6 +91,7 @@ def run_agent_workflow(
         "agent_used": "",
         "recommended_policies": None,
         "comparison_table": None,
+        "policy_catalog": policy_catalog or [],
         "filter_company": filter_company,
         "filter_policy": filter_policy
     }

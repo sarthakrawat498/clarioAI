@@ -7,6 +7,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.schemas.recommendation import RecommendationResponse
 from app.services.profile_service import get_user_profile
+from app.services.policy_service import get_all_policies, serialize_policy_catalog
 from app.agents.sales_agent import sales_agent_node
 
 router = APIRouter(prefix="/recommendations", tags=["Smart Policy Recommendations"])
@@ -36,7 +37,9 @@ def get_recommendations(
         "budget_annual_max": profile_obj.budget_annual_max
     }
 
-    state_input = {"query": "recommend best health policy for my profile", "user_profile": profile_dict}
+    policy_catalog = serialize_policy_catalog(get_all_policies(db))
+
+    state_input = {"query": "recommend best health policy for my profile", "user_profile": profile_dict, "policy_catalog": policy_catalog}
     sales_output = sales_agent_node(state_input)
 
     top_recs = sales_output.get("recommended_policies", [])

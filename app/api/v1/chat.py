@@ -11,6 +11,7 @@ from app.models.chat import ChatSession, ChatMessage
 from app.schemas.chat import ChatQueryRequest, ChatQueryResponse, ChatSessionOut
 from app.agents.graph import run_agent_workflow
 from app.services.profile_service import get_user_profile
+from app.services.policy_service import get_all_policies, serialize_policy_catalog
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["AI Chat & Multi-Agent Assistant"])
@@ -57,6 +58,7 @@ def handle_chat_query(
         "sum_insured_preference": profile_obj.sum_insured_preference,
         "budget_annual_max": profile_obj.budget_annual_max
     }
+    policy_catalog = serialize_policy_catalog(get_all_policies(db))
 
     # 3. Save User Message to DB
     user_msg = ChatMessage(
@@ -72,6 +74,7 @@ def handle_chat_query(
     agent_output = run_agent_workflow(
         query=req.message,
         user_profile=user_profile_dict,
+        policy_catalog=policy_catalog,
         filter_company=req.filter_company,
         filter_policy=req.filter_policy
     )

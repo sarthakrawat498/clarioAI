@@ -1,7 +1,96 @@
 import os
 import json
+import re
+from pathlib import Path
+from typing import Dict, List, Optional
 
 SAMPLE_DOCS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "sample_policies")
+
+COMPANY_ALIASES = {
+    "hdfc ergo": "HDFC ERGO",
+    "niva bupa": "Niva Bupa",
+    "star health": "Star Health",
+    "care health": "Care Health",
+}
+
+POLICY_ALIASES = {
+    "optima secure": "Optima Secure",
+    "optima restore": "Optima Restore",
+    "reassure 2.0": "ReAssure 2.0",
+    "reassure 2": "ReAssure 2.0",
+    "care supreme": "Care Supreme",
+}
+
+
+def _read_text_file(file_path: str) -> str:
+    with open(file_path, "r", encoding="utf-8") as file_handle:
+        return file_handle.read()
+
+
+def _canonical_name(value: str, aliases: Dict[str, str]) -> str:
+    lowered = value.lower()
+    for needle, canonical in aliases.items():
+        if needle in lowered:
+            return canonical
+    return " ".join(part.capitalize() for part in re.split(r"[\s_\-]+", value.strip()) if part)
+
+
+def _extract_company(text: str, filename: str) -> str:
+    for line in [line.strip() for line in text.splitlines() if line.strip()][:12]:
+        company = _canonical_name(line, COMPANY_ALIASES)
+        if company in COMPANY_ALIASES.values():
+            return company
+    stem = Path(filename).stem.replace("---", " ").replace("_", " ").replace("-", " ")
+    return _canonical_name(stem, COMPANY_ALIASES)
+
+
+def _extract_policy_name(text: str, filename: str) -> str:
+    patterns = [
+        r"POLICY\s+(?:WORDINGS|PROSPECTUS|GUIDELINES)\s*:\s*([A-Z0-9 .&/()-]+?)(?:\s+PLAN|\s*\(|\n)",
+        r"\b(OPTIMA\s+SECURE|OPTIMA\s+RESTORE|REASSURE\s+2(?:\.0)?|CARE\s+SUPREME)\b",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE | re.MULTILINE)
+        if match:
+            return _canonical_name(match.group(1), POLICY_ALIASES)
+
+    stem = Path(filename).stem.lower().replace("---", " ").replace("_", " ").replace("-", " ")
+    return _canonical_name(stem, POLICY_ALIASES)
+
+
+def discover_policy_documents() -> List[Dict[str, str]]:
+    """Discover policy text files from the sample policy directory."""
+    if not os.path.isdir(SAMPLE_DOCS_DIR):
+        return []
+
+    discovered: List[Dict[str, str]] = []
+    seen = set()
+
+    for filename in sorted(os.listdir(SAMPLE_DOCS_DIR)):
+        if not filename.lower().endswith(".txt"):
+            continue
+
+        file_path = os.path.join(SAMPLE_DOCS_DIR, filename)
+        if not os.path.isfile(file_path):
+            continue
+
+        text = _read_text_file(file_path)
+        company = _extract_company(text, filename)
+        policy_name = _extract_policy_name(text, filename)
+        dedupe_key = (company.lower(), policy_name.lower())
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+
+        discovered.append({
+            "company": company,
+            "policy_name": policy_name,
+            "filename": filename,
+            "file_path": file_path,
+            "description": text.splitlines()[0].strip() if text.splitlines() else filename,
+        })
+
+    return discovered
 
 POLICY_DOCUMENTS = [
     {
