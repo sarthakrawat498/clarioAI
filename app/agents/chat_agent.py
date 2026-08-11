@@ -24,7 +24,7 @@ def chat_agent_node(state: AgentState) -> AgentState:
     # Check knowledge base dictionary
     for key, desc in FAQ_KNOWLEDGE_BASE.items():
         if key in query:
-            answer = f"### 💡 Insurance Term Explainer: {key.upper()}\n\n{desc}\n\n*Feel free to ask about specific policies, run a claim check, or compare plans!*"
+            answer = f"Insurance Term Explainer: {key.upper()}\n\n{desc}\n\n*Feel free to ask about specific policies, run a claim check, or compare plans!"
             break
 
     if not answer and settings.OPENAI_API_KEY and len(settings.OPENAI_API_KEY.strip()) > 10:
@@ -51,12 +51,12 @@ def chat_agent_node(state: AgentState) -> AgentState:
 
     if not answer:
         answer = (
-            "### 🩺 Health Insurance AI Assistant\n"
+            "Health Insurance AI Assistant\n"
             "I am here to guide you through your health insurance decisions! You can ask me to:\n"
-            "1. **Analyze Coverage**: Check room rent limits, co-pay, or waiting periods for HDFC Optima Secure, Star Health, Niva Bupa, or Care Supreme.\n"
-            "2. **Compare Policies**: View a side-by-side matrix of key features.\n"
-            "3. **Get Tailored Recommendations**: Score plans matching your age, family size, and pre-existing conditions.\n"
-            "4. **Check Claim Eligibility**: Estimate approval percentage and out-of-pocket expenses for a treatment."
+            "1. Analyze Coverage: Check room rent limits, co-pay, or waiting periods for HDFC Optima Secure, Star Health, Niva Bupa, or Care Supreme.\n"
+            "2. Compare Policies: View a side-by-side matrix of key features.\n"
+            "3. Get Tailored Recommendations: Score plans matching your age, family size, and pre-existing conditions.\n"
+            "4. Check Claim Eligibility: Estimate approval percentage and out-of-pocket expenses for a treatment."
         )
 
     state["final_response"] = answer

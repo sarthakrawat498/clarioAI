@@ -94,19 +94,19 @@ def sales_agent_node(state: AgentState) -> AgentState:
     top_plans = scored[:3]
 
     response_lines = [
-        "### 🎯 Top AI Recommended Health Insurance Plans",
-        f"Based on your profile (*Age {age}, Budget ₹{budget:,.0f}, PED: {', '.join(peds) if peds else 'None'}*), "
+        "Top AI Recommended Health Insurance Plans",
+        f"Based on your profile (Age {age}, Budget ₹{budget:,.0f}, PED: {', '.join(peds) if peds else 'None'}), "
         "here are your top matched health insurance policies:\n"
     ]
 
     for idx, plan in enumerate(top_plans, start=1):
-        response_lines.append(f"#### #{idx} {plan['insurer_name']} - {plan['policy_name']} (Match Score: **{plan['match_score']}%**)")
-        response_lines.append(f"- **Est. Annual Premium**: ₹{plan['est_premium']:,.0f}")
-        response_lines.append(f"- **Best Suited For**: {plan['suitable_for']}")
-        response_lines.append(f"- **Key Features**: {', '.join(plan['highlights'])}")
-        response_lines.append(f"- **Recommended Riders**: {', '.join(plan['riders'])}\n")
+        response_lines.append(f"{idx}. {plan['insurer_name']} - {plan['policy_name']} (Match Score: {plan['match_score']}%)")
+        response_lines.append(f"- Est. Annual Premium: ₹{plan['est_premium']:,.0f}")
+        response_lines.append(f"- Best Suited For: {plan['suitable_for']}")
+        response_lines.append(f"- Key Features: {', '.join(plan['highlights'])}")
+        response_lines.append(f"- Recommended Riders: {', '.join(plan['riders'])}\n")
 
-    response_lines.append("💡 *Would you like to run a side-by-side comparison of these plans or check custom claim scenarios?*")
+    response_lines.append("Would you like to run a side-by-side comparison of these plans or check custom claim scenarios?")
 
     state["final_response"] = "\n".join(response_lines)
     state["recommended_policies"] = top_plans

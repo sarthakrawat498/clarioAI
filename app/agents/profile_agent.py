@@ -36,24 +36,24 @@ def profile_agent_node(state: AgentState) -> AgentState:
         risk_factors.append("Tobacco usage requires underwriting clearance & potential 10-15% premium loading.")
 
     response_lines = [
-        "### 👤 Customer Profile Analysis & Health Risk Card",
-        f"- **Age**: {age} years",
-        f"- **City Tier**: {city_tier}",
-        f"- **Coverage Type**: {coverage_type} ({profile.get('family_members_count', 2)} members)",
-        f"- **Pre-existing Conditions**: {', '.join(peds) if peds else 'None Declared'}",
-        f"- **Annual Budget**: ₹{budget:,.0f}",
+        "👤 Customer Profile Analysis & Health Risk Card",
+        f"- Age: {age} years",
+        f"- City Tier: {city_tier}",
+        f"- Coverage Type: {coverage_type} ({profile.get('family_members_count', 2)} members)",
+        f"- Pre-existing Conditions: {', '.join(peds) if peds else 'None Declared'}",
+        f"- Annual Budget: ₹{budget:,.0f}",
         ""
     ]
 
     if risk_factors:
-        response_lines.append("#### ⚠️ Key Risk Considerations for Policy Selection:")
+        response_lines.append("⚠️ Key Risk Considerations for Policy Selection:")
         for rf in risk_factors:
             response_lines.append(f"- {rf}")
         response_lines.append("")
 
     response_lines.append(
-        "💡 **Next Steps**: You can now ask me to **recommend the best policies** for your profile, "
-        "**compare specific plans** (e.g. HDFC Optima Secure vs Care Supreme), or **ask coverage questions** regarding your pre-existing conditions."
+        "💡 Next Steps: You can now ask me to recommend the best policies for your profile, "
+        "compare specific plans (e.g. HDFC Optima Secure vs Care Supreme), or ask coverage questions regarding your pre-existing conditions."
     )
 
     state["final_response"] = "\n".join(response_lines)

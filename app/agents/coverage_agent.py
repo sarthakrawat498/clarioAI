@@ -29,7 +29,7 @@ def coverage_agent_node(state: AgentState) -> AgentState:
     
     if not retrieved:
         state["final_response"] = (
-            "⚠️ **Insufficient Document Context**: I could not find any explicit policy clause in the indexed "
+            "⚠️ Insufficient Document Context: I could not find any explicit policy clause in the indexed "
             "health insurance documents regarding your query. To prevent misinformation or hallucinations, "
             "please verify directly with the official policy prospectus or refine your question."
         )
@@ -84,13 +84,13 @@ def coverage_agent_node(state: AgentState) -> AgentState:
     if not answer:
         # Deterministic grounded fallback synthesis
         lines = [
-            f"### 📄 Policy Coverage Details & Analysis",
+            f"📄 Policy Coverage Details & Analysis",
             f"Based strictly on the retrieved health insurance policy documents, here are the clauses relevant to your question:\n"
         ]
         for doc in retrieved:
-            lines.append(f"#### 📌 {doc['company']} - {doc['policy_name']} (Page {doc['page']})")
+            lines.append(f"{doc['company']} - {doc['policy_name']} (Page {doc['page']})")
             lines.append(f"> {doc['content']}")
-            lines.append(f"**Citation**: `[Company: {doc['company']}, Policy: {doc['policy_name']}, Page: {doc['page']}]`\n")
+            lines.append(f"Citation: `[Company: {doc['company']}, Policy: {doc['policy_name']}, Page: {doc['page']}]`\n")
         
         answer = "\n".join(lines)
 
