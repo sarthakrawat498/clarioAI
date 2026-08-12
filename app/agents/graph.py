@@ -22,10 +22,11 @@ def route_intent(state: AgentState) -> str:
         return "coverage"
     elif intent == "COMPARISON":
         return "comparison"
-    elif intent == "SALES":
+    elif intent in ["SALES", "PREMIUM"]:
         return "sales"
     else:
         return "chat"
+
 
 
 def build_health_insurance_graph():

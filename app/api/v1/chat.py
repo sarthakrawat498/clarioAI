@@ -140,3 +140,36 @@ def get_chat_sessions(
             "messages": msgs_out
         })
     return out
+
+
+@router.delete("/sessions/{session_id}")
+def delete_chat_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a specific chat session and all its messages."""
+    session = db.query(ChatSession).filter(ChatSession.id == session_id, ChatSession.user_id == current_user.id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
+    db.delete(session)
+    db.commit()
+    return {"message": f"Session #{session_id} deleted successfully."}
+
+
+@router.delete("/sessions")
+def clear_all_chat_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete all past chat sessions for current user."""
+    sessions = db.query(ChatSession).filter(ChatSession.user_id == current_user.id).all()
+    session_ids = [s.id for s in sessions]
+    if session_ids:
+        db.query(ChatMessage).filter(ChatMessage.session_id.in_(session_ids)).delete(synchronize_session=False)
+        db.query(ChatSession).filter(ChatSession.user_id == current_user.id).delete(synchronize_session=False)
+        db.commit()
+    return {"message": "All chat history cleared successfully."}
+

@@ -9,8 +9,11 @@ SAMPLE_DOCS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(_
 COMPANY_ALIASES = {
     "hdfc ergo": "HDFC ERGO",
     "niva bupa": "Niva Bupa",
+    "nbh": "Niva Bupa",
     "star health": "Star Health",
     "care health": "Care Health",
+    "care": "Care Health",
+    "aditya birla": "Aditya Birla",
 }
 
 POLICY_ALIASES = {
@@ -19,12 +22,29 @@ POLICY_ALIASES = {
     "reassure 2.0": "ReAssure 2.0",
     "reassure 2": "ReAssure 2.0",
     "care supreme": "Care Supreme",
+    "aspire": "Aspire",
+    "activ one": "Activ One",
+    "activ health": "Activ Health",
 }
 
 
-def _read_text_file(file_path: str) -> str:
-    with open(file_path, "r", encoding="utf-8") as file_handle:
-        return file_handle.read()
+def _read_document_text(file_path: str) -> str:
+    if file_path.lower().endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(file_path)
+            pages_text = []
+            for p in reader.pages[:10]:
+                txt = p.extract_text()
+                if txt:
+                    pages_text.append(txt)
+            return "\n".join(pages_text)
+        except Exception as e:
+            print(f"[SeedDocs] Warning reading PDF {file_path}: {e}")
+            return ""
+    else:
+        with open(file_path, "r", encoding="utf-8") as file_handle:
+            return file_handle.read()
 
 
 def _canonical_name(value: str, aliases: Dict[str, str]) -> str:
@@ -36,7 +56,7 @@ def _canonical_name(value: str, aliases: Dict[str, str]) -> str:
 
 
 def _extract_company(text: str, filename: str) -> str:
-    for line in [line.strip() for line in text.splitlines() if line.strip()][:12]:
+    for line in [line.strip() for line in text.splitlines() if line.strip()][:25]:
         company = _canonical_name(line, COMPANY_ALIASES)
         if company in COMPANY_ALIASES.values():
             return company
@@ -46,8 +66,9 @@ def _extract_company(text: str, filename: str) -> str:
 
 def _extract_policy_name(text: str, filename: str) -> str:
     patterns = [
-        r"POLICY\s+(?:WORDINGS|PROSPECTUS|GUIDELINES)\s*:\s*([A-Z0-9 .&/()-]+?)(?:\s+PLAN|\s*\(|\n)",
-        r"\b(OPTIMA\s+SECURE|OPTIMA\s+RESTORE|REASSURE\s+2(?:\.0)?|CARE\s+SUPREME)\b",
+        r"Product\s+Name\s*:\s*([A-Za-z0-9 .&/()-]+)",
+        r"POLICY\s+(?:WORDINGS|PROSPECTUS|GUIDELINES|WORDING)\s*:\s*([A-Z0-9 .&/()-]+?)(?:\s+PLAN|\s*\(|\n)",
+        r"\b(OPTIMA\s+SECURE|OPTIMA\s+RESTORE|REASSURE\s+2(?:\.0)?|CARE\s+SUPREME|ASPIRE|ACTIV\s+ONE|ACTIV\s+HEALTH)\b",
     ]
     for pattern in patterns:
         match = re.search(pattern, text, flags=re.IGNORECASE | re.MULTILINE)
@@ -59,7 +80,7 @@ def _extract_policy_name(text: str, filename: str) -> str:
 
 
 def discover_policy_documents() -> List[Dict[str, str]]:
-    """Discover policy text files from the sample policy directory."""
+    """Discover policy files (PDF or TXT) from the sample policy directory."""
     if not os.path.isdir(SAMPLE_DOCS_DIR):
         return []
 
@@ -67,30 +88,38 @@ def discover_policy_documents() -> List[Dict[str, str]]:
     seen = set()
 
     for filename in sorted(os.listdir(SAMPLE_DOCS_DIR)):
-        if not filename.lower().endswith(".txt"):
+        if not (filename.lower().endswith(".txt") or filename.lower().endswith(".pdf")):
             continue
 
         file_path = os.path.join(SAMPLE_DOCS_DIR, filename)
         if not os.path.isfile(file_path):
             continue
 
-        text = _read_text_file(file_path)
+        text = _read_document_text(file_path)
         company = _extract_company(text, filename)
         policy_name = _extract_policy_name(text, filename)
+
+        # Special casing if filename is Aspire -> Niva Bupa
+        if "aspire" in filename.lower() and company not in COMPANY_ALIASES.values():
+            company = "Niva Bupa"
+
         dedupe_key = (company.lower(), policy_name.lower())
         if dedupe_key in seen:
             continue
         seen.add(dedupe_key)
+
+        first_line = text.splitlines()[0].strip() if text.splitlines() else filename
 
         discovered.append({
             "company": company,
             "policy_name": policy_name,
             "filename": filename,
             "file_path": file_path,
-            "description": text.splitlines()[0].strip() if text.splitlines() else filename,
+            "description": first_line[:200] if len(first_line) > 200 else first_line,
         })
 
     return discovered
+
 
 POLICY_DOCUMENTS = [
     {
@@ -241,8 +270,11 @@ SECTION 4: CLAIMS & HOSPITAL NETWORK
 
 
 def seed_policy_documents():
-    """Create directory and generate text files for policy documents."""
+    """Create directory and generate text files for policy documents if directory is empty."""
     os.makedirs(SAMPLE_DOCS_DIR, exist_ok=True)
+    if os.listdir(SAMPLE_DOCS_DIR):
+        return []
+
     generated_files = []
     
     for doc_info in POLICY_DOCUMENTS:
@@ -256,6 +288,7 @@ def seed_policy_documents():
     
     print(f"[SeedDocs] Successfully generated {len(generated_files)} policy text files in {SAMPLE_DOCS_DIR}")
     return generated_files
+
 
 
 if __name__ == "__main__":
