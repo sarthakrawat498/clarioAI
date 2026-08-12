@@ -20,7 +20,9 @@ import {
   ChevronDown, 
   ChevronUp,
   Shield,
-  Info
+  Trash2,
+  Pencil,
+  Check
 } from 'lucide-react';
 
 const PED_OPTIONS = [
@@ -99,21 +101,31 @@ const getINRHelperText = (value) => {
   return `₹${num.toLocaleString("en-IN")}`;
 };
 
+
 const QUICK_PROMPTS = [
   { text: "💡 Recommend best policy", query: "Can you recommend the top health insurance policy based on my health profile and budget?" },
   { text: "🧮 Calculate annual premium", query: "Can you estimate my annual health insurance premium?" },
-  { text: "🩺 Am I eligible for knee claim?", query: "Am I eligible to claim ₹2,00,000 for knee surgery hospital stay after 2 years of policy?" },
+  { text: "🩺 Check claim eligibility", query: "Am I eligible to claim ₹2,00,000 for a surgery hospital stay after 2 years of policy?" },
   { text: "⚖️ Compare Star vs HDFC", query: "Compare Star Health Comprehensive vs HDFC ERGO Optima Secure side by side." },
   { text: "📜 What is PED waiting period?", query: "What is the standard pre-existing disease (PED) waiting period across policies?" },
   { text: "📊 Show policy catalogue", query: "What health insurance policies are available in the catalogue?" },
 ];
 
+
 const FormattedMessage = ({ content }) => {
   if (!content) return null;
 
   const parseBlocks = (text) => {
-    // Strip trailing citation placeholder text if already formatted in sources
-    let cleanText = text.replace(/📖 Policy Excerpt Citations:[\s\S]*$/gi, '').trim();
+    // Strip trailing citations and inline bracket citations
+    let cleanText = text
+      .replace(/📖 Policy Excerpt Citations:[\s\S]*$/gi, '')
+      .replace(/\[Company:.*?\]/gi, '')
+      .replace(/\[Policy:.*?\]/gi, '')
+      .replace(/\[Page:.*?\]/gi, '')
+      .replace(/\[[^\]]*?Page:\s*\d+[^\]]*?\]/gi, '')
+      .replace(/\[[^\]]*?Company:[^\]]*?\]/gi, '')
+      .trim();
+
 
     const lines = cleanText.split('\n');
     const blocks = [];
@@ -268,6 +280,8 @@ export const SinglePageChatbot = () => {
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [sessions, setSessions] = useState([]);
+  const [editingSessionId, setEditingSessionId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState('');
 
   // Active Drawer State ('none' | 'profile' | 'catalog' | 'faqs' | 'history')
   const [activeDrawer, setActiveDrawer] = useState('none');
@@ -394,6 +408,31 @@ export const SinglePageChatbot = () => {
       console.error('Clear all sessions error:', err);
     }
   };
+
+  const handleStartEdit = (e, session) => {
+    e.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditingTitle(session.session_title);
+  };
+
+  const handleSaveEdit = async (e, targetId) => {
+    e.stopPropagation();
+    if (!editingTitle.trim()) {
+      setEditingSessionId(null);
+      return;
+    }
+    try {
+      await chatAPI.updateSessionTitle(targetId, editingTitle.trim());
+      setSessions((prev) =>
+        prev.map((s) => (s.id === targetId ? { ...s, session_title: editingTitle.trim() } : s))
+      );
+    } catch (err) {
+      console.error('Update session title error:', err);
+    } finally {
+      setEditingSessionId(null);
+    }
+  };
+
 
 
   const fetchPolicies = async () => {
@@ -612,17 +651,55 @@ export const SinglePageChatbot = () => {
                 onClick={() => loadSession(s)}
               >
                 <Bot size={15} style={{ flexShrink: 0, color: 'var(--cyan)' }} />
-                <span className="history-item-title">{s.session_title}</span>
-                <button
-                  className="delete-session-btn"
-                  onClick={(e) => handleDeleteSession(e, s.id)}
-                  title="Delete chat session"
-                >
-                  <Trash2 size={13} />
-                </button>
+                
+                {editingSessionId === s.id ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }} onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ padding: '2px 6px', fontSize: '0.8rem', height: '26px' }}
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveEdit(e, s.id);
+                        if (e.key === 'Escape') setEditingSessionId(null);
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      className="delete-session-btn"
+                      style={{ color: '#34d399' }}
+                      onClick={(e) => handleSaveEdit(e, s.id)}
+                      title="Save title"
+                    >
+                      <Check size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="history-item-title">{s.session_title}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                      <button
+                        className="delete-session-btn"
+                        onClick={(e) => handleStartEdit(e, s)}
+                        title="Edit query title"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        className="delete-session-btn"
+                        onClick={(e) => handleDeleteSession(e, s.id)}
+                        title="Delete chat session"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
+
 
 
           <div style={{ paddingTop: '16px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
@@ -646,26 +723,10 @@ export const SinglePageChatbot = () => {
                   )}
 
                   <FormattedMessage content={msg.content} />
-
-                  {/* Sources citation list */}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                        📖 Policy Excerpt Citations:
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {msg.sources.map((src, sIdx) => (
-                          <div key={sIdx} style={{ background: 'rgba(0,0,0,0.25)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', borderLeft: '3px solid var(--cyan)' }}>
-                            <div style={{ fontWeight: 700, color: '#38bdf8' }}>{src.insurer_name} - {src.policy_name}</div>
-                            <div style={{ color: 'var(--text-muted)', marginTop: '2px', fontStyle: 'italic' }}>"{src.text || src.content}"</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
+
 
             {loading && (
               <div className="chat-bubble assistant" style={{ width: 'fit-content' }}>

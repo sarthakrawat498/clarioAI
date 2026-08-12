@@ -44,3 +44,7 @@ class ChatQueryResponse(BaseModel):
     sources: List[Dict[str, Any]] = []
     recommended_policies: Optional[List[Dict[str, Any]]] = None
     comparison_table: Optional[Dict[str, Any]] = None
+
+class UpdateSessionTitleRequest(BaseModel):
+    session_title: str = Field(..., min_length=1)
+

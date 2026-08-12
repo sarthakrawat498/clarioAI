@@ -212,11 +212,12 @@ def sales_agent_node(state: AgentState) -> AgentState:
                 f"Relevant PDF Policy Excerpts (RAG Context):\n{rag_context}\n\n"
                 "CRITICAL FORMATTING INSTRUCTIONS FOR PRODUCTION VISUALIZATION:\n"
                 "- DO NOT use raw hash header symbols (like #, ##, ###). Use clean bold section titles (e.g. **Top Recommended Policies**).\n"
+                "- DO NOT include bracketed citations, page numbers, or policy references in brackets (such as [Company: X, Policy: Y, Page: Z]). Present all details directly in natural, professional prose.\n"
                 "- Structure your answer using clean paragraphs, bullet points (- point), and structured markdown tables (| Column 1 | Column 2 |).\n"
                 "- If the user asks for a premium estimate or pricing, provide an estimated premium breakdown table for the top policies based on their age and sum insured.\n"
                 "- If the user asks for recommendations, rank the top policies matching their profile with match scores and key features.\n"
-                "- Make the formatting executive-ready, highly readable, and professional.\n"
-                "- Cite exact sources if referencing specific clauses [Company: X, Policy: Y, Page: Z]."
+                "- Make the formatting executive-ready, highly readable, and professional."
+
             )
             res = llm.invoke(prompt)
             answer = res.content.strip()
