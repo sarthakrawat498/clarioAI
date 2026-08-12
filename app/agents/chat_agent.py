@@ -65,9 +65,10 @@ def chat_agent_node(state: AgentState) -> AgentState:
                 f"User Question: {query}\n\n"
                 "CRITICAL FORMATTING INSTRUCTIONS FOR PRODUCTION VISUALIZATION:\n"
                 "- DO NOT use raw hash header symbols (like #, ##, ###). Use clean bold section titles (e.g. **Coverage Summary**).\n"
+                "- DO NOT include bracketed citations, page numbers, or policy citations (such as [Company: X, Policy: Y, Page: Z]). Present all information directly in natural, professional language.\n"
                 "- Structure your response using clean paragraphs, bullet points (- item), and plain markdown tables where applicable.\n"
-                "- Provide a direct, well-structured answer with bold key terms for readability.\n"
-                "- If citing specific policy clauses from the context, include exact citations like [Company: X, Policy: Y, Page: Z]."
+                "- Provide a direct, well-structured answer with bold key terms for readability."
+
             )
             res = llm.invoke(prompt)
             answer = res.content.strip()

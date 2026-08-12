@@ -65,7 +65,12 @@ export const chatAPI = {
     const response = await apiClient.delete('/chat/sessions');
     return response.data;
   },
+  updateSessionTitle: async (sessionId, session_title) => {
+    const response = await apiClient.put(`/chat/sessions/${sessionId}`, { session_title });
+    return response.data;
+  },
 };
+
 
 
 export const policyAPI = {

@@ -74,8 +74,9 @@ def coverage_agent_node(state: AgentState) -> AgentState:
                 f"User Question: {query}\n\n"
                 "CRITICAL FORMATTING INSTRUCTIONS FOR PRODUCTION VISUALIZATION:\n"
                 "- DO NOT use raw hash header symbols (like #, ##, ###). Use clean bold section titles (e.g. **Coverage Analysis**).\n"
-                "- Structure your answer using clean paragraphs, bullet points (- point), and structured tables where applicable.\n"
-                "- For every key statement or clause you present, cite the exact source using format [Company: X, Policy: Y, Page: Z]."
+                "- DO NOT include bracketed citations, page numbers, or policy references in brackets (such as [Company: X, Policy: Y, Page: Z]). Present all facts directly in clear, executive-ready language.\n"
+                "- Structure your answer using clean paragraphs, bullet points (- point), and structured tables where applicable."
+
             )
             res = llm.invoke(prompt)
             answer = res.content.strip()

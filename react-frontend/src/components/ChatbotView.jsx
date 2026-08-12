@@ -12,23 +12,35 @@ import {
   Scale, 
   ExternalLink,
   MessageSquarePlus,
-  Trash2
+  Trash2,
+  Pencil,
+  Check
 } from 'lucide-react';
+
 
 
 const QUICK_PROMPTS = [
   { text: "🧮 Calculate premium for 35yo in Tier 1 city", query: "Can you calculate my annual estimated premium for age 35, Tier 1 city with Family Floater?" },
-  { text: "🩺 Check claim eligibility for knee surgery", query: "Am I eligible to claim ₹2,00,000 for knee surgery hospital stay after 2 years of policy?" },
+  { text: "🩺 Check claim eligibility", query: "Am I eligible to claim ₹2,00,000 for a surgery hospital stay after 2 years of policy?" },
   { text: "💡 Recommend best policy for diabetes", query: "Which health policy is best for someone with pre-existing diabetes and 2 family members?" },
   { text: "⚖️ Compare Star Comprehensive vs HDFC Optima", query: "Compare Star Health Comprehensive vs HDFC ERGO Optima Secure side by side." },
   { text: "📜 What is pre-existing disease waiting period?", query: "What is the standard pre-existing disease (PED) waiting period across policies?" },
 ];
 
+
 const FormattedMessage = ({ content }) => {
   if (!content) return null;
 
   const parseBlocks = (text) => {
-    let cleanText = text.replace(/📖 Policy Excerpt Citations:[\s\S]*$/gi, '').trim();
+    let cleanText = text
+      .replace(/📖 Policy Excerpt Citations:[\s\S]*$/gi, '')
+      .replace(/\[Company:.*?\]/gi, '')
+      .replace(/\[Policy:.*?\]/gi, '')
+      .replace(/\[Page:.*?\]/gi, '')
+      .replace(/\[[^\]]*?Page:\s*\d+[^\]]*?\]/gi, '')
+      .replace(/\[[^\]]*?Company:[^\]]*?\]/gi, '')
+      .trim();
+
     const lines = cleanText.split('\n');
     const blocks = [];
     let tableRows = [];
@@ -176,6 +188,8 @@ export const ChatbotView = ({ onNavigate }) => {
   const [sessionId, setSessionId] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState('');
 
   const messagesEndRef = useRef(null);
 
@@ -209,6 +223,34 @@ export const ChatbotView = ({ onNavigate }) => {
         startNewChat();
       }
     } catch (err) {
+      console.error('Delete session error:', err);
+    }
+  };
+
+  const handleStartEdit = (e, session) => {
+    e.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditingTitle(session.session_title);
+  };
+
+  const handleSaveEdit = async (e, targetId) => {
+    e.stopPropagation();
+    if (!editingTitle.trim()) {
+      setEditingSessionId(null);
+      return;
+    }
+    try {
+      await chatAPI.updateSessionTitle(targetId, editingTitle.trim());
+      setSessions((prev) =>
+        prev.map((s) => (s.id === targetId ? { ...s, session_title: editingTitle.trim() } : s))
+      );
+    } catch (err) {
+      console.error('Update session title error:', err);
+    } finally {
+      setEditingSessionId(null);
+    }
+  };
+
       console.error('Delete session error:', err);
     }
   };
@@ -347,18 +389,54 @@ export const ChatbotView = ({ onNavigate }) => {
                   className={`history-item ${s.id === sessionId ? 'active' : ''}`}
                 >
                   <Bot size={14} style={{ flexShrink: 0, color: 'var(--cyan)' }} />
-                  <span className="history-item-title">
-                    {s.session_title || `Chat Session #${s.id}`}
-                  </span>
-                  <button
-                    className="delete-session-btn"
-                    onClick={(e) => handleDeleteSession(e, s.id)}
-                    title="Delete chat session"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  
+                  {editingSessionId === s.id ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ padding: '2px 6px', fontSize: '0.8rem', height: '26px' }}
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit(e, s.id);
+                          if (e.key === 'Escape') setEditingSessionId(null);
+                        }}
+                        autoFocus
+                      />
+                      <button
+                        className="delete-session-btn"
+                        style={{ color: '#34d399' }}
+                        onClick={(e) => handleSaveEdit(e, s.id)}
+                        title="Save title"
+                      >
+                        <Check size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="history-item-title">{s.session_title}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <button
+                          className="delete-session-btn"
+                          onClick={(e) => handleStartEdit(e, s)}
+                          title="Edit query title"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          className="delete-session-btn"
+                          onClick={(e) => handleDeleteSession(e, s.id)}
+                          title="Delete chat session"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))
+
 
             )}
           </div>
@@ -378,39 +456,10 @@ export const ChatbotView = ({ onNavigate }) => {
               )}
 
               <FormattedMessage content={msg.content} />
-
-              {/* RAG Sources rendering */}
-              {msg.sources && msg.sources.length > 0 && (
-                <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                    📖 Policy Citations & Excerpts:
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {msg.sources.map((src, sIdx) => (
-                      <div
-                        key={sIdx}
-                        style={{
-                          background: 'rgba(0,0,0,0.25)',
-                          padding: '8px 12px',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.78rem',
-                          borderLeft: '3px solid var(--cyan)',
-                        }}
-                      >
-                        <div style={{ fontWeight: 700, color: '#38bdf8' }}>
-                          {src.insurer_name} - {src.policy_name} ({src.clause_type})
-                        </div>
-                        <div style={{ color: 'var(--text-muted)', marginTop: '2px', fontStyle: 'italic' }}>
-                          "{src.text || src.content || 'Clause excerpt details.'}"
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}
+
 
         {loading && (
           <div className="chat-bubble assistant" style={{ width: 'fit-content' }}>

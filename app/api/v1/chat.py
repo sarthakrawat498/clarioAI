@@ -8,7 +8,7 @@ from app.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.chat import ChatSession, ChatMessage
-from app.schemas.chat import ChatQueryRequest, ChatQueryResponse, ChatSessionOut
+from app.schemas.chat import ChatQueryRequest, ChatQueryResponse, ChatSessionOut, UpdateSessionTitleRequest
 from app.agents.graph import run_agent_workflow
 from app.services.profile_service import get_user_profile
 from app.services.policy_service import get_all_policies, serialize_policy_catalog
@@ -142,6 +142,24 @@ def get_chat_sessions(
     return out
 
 
+@router.put("/sessions/{session_id}")
+def update_chat_session_title(
+    session_id: int,
+    req: UpdateSessionTitleRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update the title of a specific chat session."""
+    session = db.query(ChatSession).filter(ChatSession.id == session_id, ChatSession.user_id == current_user.id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    session.session_title = req.session_title.strip() or f"Chat Session #{session_id}"
+    db.commit()
+    db.refresh(session)
+    return {"message": "Session title updated", "session_id": session_id, "session_title": session.session_title}
+
+
 @router.delete("/sessions/{session_id}")
 def delete_chat_session(
     session_id: int,
@@ -172,4 +190,5 @@ def clear_all_chat_sessions(
         db.query(ChatSession).filter(ChatSession.user_id == current_user.id).delete(synchronize_session=False)
         db.commit()
     return {"message": "All chat history cleared successfully."}
+
 
