@@ -1,8 +1,46 @@
 import logging
+import re
 from typing import Dict, Any, List
 from app.agents.state import AgentState
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_recommended_policy_names(messages: List[Dict[str, Any]], valid_keys: List[str]) -> List[str]:
+    """Extract policy keys from the latest assistant recommendation text."""
+    last_assistant = None
+    for msg in reversed(messages or []):
+        if msg.get("role") == "assistant" and "salesagent" in str(msg.get("agent_name", "")).lower():
+            last_assistant = msg
+            break
+
+    if not last_assistant:
+        return []
+
+    content = str(last_assistant.get("content", ""))
+    if not content:
+        return []
+
+    selected = []
+    for key in valid_keys:
+        insurer, _, policy = key.partition(" ")
+        # Match by insurer + policy token hints to handle markdown variants.
+        insurer_hit = insurer.lower() in content.lower()
+        policy_hit = policy.lower() in content.lower()
+        if insurer_hit and policy_hit:
+            selected.append(key)
+
+    if selected:
+        return selected[:4]
+
+    # Fallback: extract "Insurer - Policy" lines from markdown recommendation lists.
+    pattern = re.compile(r"\d+\.\s*([A-Za-z0-9 .&]+)\s*-\s*([A-Za-z0-9 .&]+)", re.IGNORECASE)
+    for insurer, policy in pattern.findall(content):
+        candidate = f"{insurer.strip()} {policy.strip()}"
+        for key in valid_keys:
+            if candidate.lower() == key.lower() and key not in selected:
+                selected.append(key)
+    return selected[:4]
 
 # Benchmark Policy Database for structured comparison
 COMPARISON_BENCHMARKS = {
@@ -93,11 +131,16 @@ def comparison_agent_node(state: AgentState) -> AgentState:
     Comparison Agent: Generates side-by-side policy matrix comparing top health plans.
     """
     query = state.get("query", "").lower()
+    messages = state.get("messages", []) or []
     policy_catalog = state.get("policy_catalog") or []
     comparison_benchmarks = _build_dynamic_comparison_benchmarks(policy_catalog) if policy_catalog else COMPARISON_BENCHMARKS
     
     # Identify target policies from query or pick default top 3
     selected_keys = []
+    selected_from_history = _extract_recommended_policy_names(messages, list(comparison_benchmarks.keys()))
+    if len(selected_from_history) >= 2:
+        selected_keys = selected_from_history
+
     for key in comparison_benchmarks:
         policy_words = key.lower().split()
         if any(w in query for w in policy_words if len(w) > 3):

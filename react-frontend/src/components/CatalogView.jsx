@@ -1,28 +1,37 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { policyAPI } from '../api';
 import { BookOpen, Search, Filter, ShieldCheck, Check } from 'lucide-react';
 
 export const CatalogView = () => {
+  const { userProfile } = useAuth();
   const [policies, setPolicies] = useState([]);
   const [search, setSearch] = useState('');
   const [companyFilter, setCompanyFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPolicies();
-  }, []);
-
   const fetchPolicies = async () => {
     setLoading(true);
     try {
-      const data = await policyAPI.getPolicies();
-      setPolicies(data || []);
+      const budget = userProfile?.budget_annual_max;
+      const data = await policyAPI.getPolicies(budget);
+      const affordablePolicies = Array.isArray(data)
+        ? data.filter((p) => {
+            const premium = Number(p.base_annual_premium_estimate);
+            return !budget || (!Number.isNaN(premium) && premium <= Number(budget));
+          })
+        : [];
+      setPolicies(affordablePolicies);
     } catch (e) {
       console.error('Failed to load catalog:', e);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPolicies();
+  }, [userProfile?.budget_annual_max]);
 
   const companies = ['ALL', ...new Set(policies.map((p) => p.insurer_name))];
 

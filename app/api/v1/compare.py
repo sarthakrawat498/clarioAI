@@ -1,17 +1,40 @@
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.api.deps import get_current_user
+from app.models.user import User
 from app.schemas.policy import PolicyCompareRequest, PolicyCompareResponse, PolicyOut
 from app.services.policy_service import get_policy_by_id, get_all_policies
+from app.services.profile_service import get_user_profile
 from app.agents.comparison_agent import COMPARISON_BENCHMARKS
 
 router = APIRouter(prefix="/compare", tags=["Policy Comparison Matrix"])
 
 
 @router.post("", response_model=PolicyCompareResponse)
-def compare_policies(req: PolicyCompareRequest, db: Session = Depends(get_db)):
+def compare_policies(
+    req: PolicyCompareRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Generate side-by-side comparative analysis matrix for selected policy IDs."""
+    profile = get_user_profile(db, current_user.id)
+    budget = profile.budget_annual_max
+
+    if budget is not None:
+        rejected = []
+        for pid in req.policy_ids:
+            p = get_policy_by_id(db, pid)
+            if p and p.base_annual_premium_estimate is not None and p.base_annual_premium_estimate > budget:
+                rejected.append(f"{p.insurer_name} {p.policy_name}")
+        if rejected:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Selected policies exceed your budget of ₹{budget:,.0f}: {', '.join(rejected)}.",
+            )
+
     selected_policies = []
     for pid in req.policy_ids:
         p = get_policy_by_id(db, pid)

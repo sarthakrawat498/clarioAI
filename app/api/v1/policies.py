@@ -11,9 +11,12 @@ router = APIRouter(prefix="/policies", tags=["Policy Catalogue & Documents"])
 
 
 @router.get("", response_model=List[PolicyOut])
-def list_policies(db: Session = Depends(get_db)):
+def list_policies(
+    budget_annual_max: Optional[float] = Query(None, ge=0),
+    db: Session = Depends(get_db),
+):
     """Retrieve catalog of available health insurance plans."""
-    return get_all_policies(db)
+    return get_all_policies(db, budget_annual_max=budget_annual_max)
 
 
 @router.get("/{policy_id}", response_model=PolicyOut)
