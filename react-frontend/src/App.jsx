@@ -61,7 +61,7 @@ const MainApp = () => {
               fontSize: "0.9rem",
             }}
           >
-            Complete your profile onboarding first to personalize
+            Complete your profile details first to personalize
             recommendations and unlock the assistant.
           </div>
           <ProfileView onComplete={completeProfileOnboarding} />

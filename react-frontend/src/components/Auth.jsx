@@ -20,8 +20,11 @@ export const Auth = () => {
       if (isLogin) {
         await login(email, password);
       } else {
-        if (!fullName) {
-          throw new Error('Full Name is required');
+        if (!fullName || fullName.trim().length < 2) {
+          throw new Error('Full Name must be at least 2 characters long.');
+        }
+        if (!password || password.length < 6) {
+          throw new Error('Password must be at least 6 characters long.');
         }
         await register(fullName, email, password);
       }
@@ -132,9 +135,15 @@ export const Auth = () => {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                minLength={isLogin ? 1 : 6}
                 required
               />
             </div>
+            {!isLogin && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Must be at least 6 characters long.
+              </div>
+            )}
           </div>
 
           <button
