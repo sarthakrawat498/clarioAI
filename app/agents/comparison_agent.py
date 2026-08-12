@@ -9,6 +9,7 @@ COMPARISON_BENCHMARKS = {
     "HDFC ERGO Optima Secure": {
         "insurer": "HDFC ERGO",
         "policy_name": "Optima Secure",
+        "sum_insured": "₹5 Lakhs to ₹1 Crore (Flexible Sum Insured)",
         "room_rent": "Single Private AC Room (No Capping)",
         "co_pay": "0%",
         "ped_waiting": "36 Months (Option for 12 Months)",
@@ -23,6 +24,7 @@ COMPARISON_BENCHMARKS = {
     "Star Health Optima Restore": {
         "insurer": "Star Health",
         "policy_name": "Optima Restore",
+        "sum_insured": "₹5 Lakhs to ₹1 Crore (Flexible Sum Insured)",
         "room_rent": "Single Private AC Room",
         "co_pay": "0% (<60 yrs) / 10% (>61 yrs)",
         "ped_waiting": "48 Months (4 Years)",
@@ -37,6 +39,7 @@ COMPARISON_BENCHMARKS = {
     "Care Health Supreme": {
         "insurer": "Care Health",
         "policy_name": "Care Supreme",
+        "sum_insured": "₹5 Lakhs to ₹1 Crore (Flexible Sum Insured)",
         "room_rent": "No Room Rent Capping (Any Room Category)",
         "co_pay": "0%",
         "ped_waiting": "36 Months (Instant PED Rider available)",
@@ -51,6 +54,7 @@ COMPARISON_BENCHMARKS = {
     "Niva Bupa ReAssure 2.0": {
         "insurer": "Niva Bupa",
         "policy_name": "ReAssure 2.0",
+        "sum_insured": "₹5 Lakhs to ₹1 Crore (Flexible Sum Insured)",
         "room_rent": "Single Private Room (No Capping)",
         "co_pay": "0%",
         "ped_waiting": "36 Months",
@@ -58,20 +62,31 @@ COMPARISON_BENCHMARKS = {
         "no_claim_bonus": "Lock the Premium (No rate hike until 1st claim)",
         "pre_post_days": "60 Days / 180 Days",
         "daycare_robotic": "100% Covered (In-house claims team)",
-        "air_ambulance": "Covered up to Sum Insured",
-        "est_premium_30yr_10l": "₹13,900 / year",
-        "highlight": "Lock-the-premium feature prevents age-based price increases until claim."
+        "highlight": "Lock-the-premium feature prevents age-based price increases until first claim."
     }
 }
 
 
 def _build_dynamic_comparison_benchmarks(policy_catalog: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    import re
+
     benchmarks = {}
     for policy in policy_catalog:
         key = f"{policy.get('insurer_name', 'Unknown')} {policy.get('policy_name', 'Policy')}"
+        min_si = float(policy.get("base_sum_insured_min") or 500000)
+        max_si = float(policy.get("base_sum_insured_max") or 100000000)
+        min_str = f"₹{min_si/100000:,.0f} Lakhs" if min_si >= 100000 else f"₹{min_si:,.0f}"
+        max_str = f"₹{max_si/10000000:,.0f} Crore" if max_si >= 10000000 else f"₹{max_si/100000:,.0f} Lakhs"
+
+        raw_desc = str(policy.get("description") or "")
+        cleaned_highlight = re.sub(r'Discovered from [^:]+:\s*', '', raw_desc).strip()
+        if not cleaned_highlight:
+            cleaned_highlight = f"Comprehensive coverage with {policy.get('room_rent_limit', 'Single Private Room')} and {policy.get('restoration_benefit', '100% Restoration')}."
+
         benchmarks[key] = {
             "insurer": policy.get("insurer_name", "Unknown"),
             "policy_name": policy.get("policy_name", "Policy"),
+            "sum_insured": f"{min_str} to {max_str} (Flexible Sum Insured)",
             "room_rent": policy.get("room_rent_limit", "N/A"),
             "co_pay": f"{policy.get('co_pay_percentage', 0.0)}%",
             "ped_waiting": f"{policy.get('ped_waiting_period_months', 36)} Months",
@@ -81,7 +96,7 @@ def _build_dynamic_comparison_benchmarks(policy_catalog: List[Dict[str, Any]]) -
             "daycare_robotic": "Covered" if policy.get("daycare_treatments_covered", True) else "Not Specified",
             "air_ambulance": "Covered" if policy.get("air_ambulance_cover", True) else "Not Specified",
             "est_premium_30yr_10l": f"₹{float(policy.get('base_annual_premium_estimate') or 0):,.0f} / year",
-            "highlight": policy.get("description", "Dynamic policy discovered from sample policy files."),
+            "highlight": cleaned_highlight,
             "claim_settlement_ratio": float(policy.get("claim_settlement_ratio") or 0.0),
             "network_hospitals_count": int(policy.get("network_hospitals_count") or 0),
         }
@@ -121,6 +136,7 @@ def comparison_agent_node(state: AgentState) -> AgentState:
     matrix = {}
     params = [
         ("Insurer", "insurer"),
+        ("Sum Insured Options", "sum_insured"),
         ("Room Rent Category", "room_rent"),
         ("Co-Payment", "co_pay"),
         ("PED Waiting Period", "ped_waiting"),
@@ -130,28 +146,28 @@ def comparison_agent_node(state: AgentState) -> AgentState:
         ("Daycare & Robotic", "daycare_robotic"),
         ("Air Ambulance Limit", "air_ambulance"),
         ("Estimated Premium (10L)", "est_premium_30yr_10l"),
-        ("Standout Advantage", "highlight")
+        ("Key Benefit Highlight", "highlight")
     ]
 
     for label, field in params:
         matrix[label] = {p_key: comparison_benchmarks[p_key][field] for p_key in selected_keys}
 
-    # Markdown Table Generation
+    # Clean Markdown Table Generation (No raw # hash symbols)
     headers = ["Feature / Parameter"] + selected_keys
     table_lines = [
-        "### 📊 Side-by-Side Policy Comparison Matrix",
+        "📊 **Side-by-Side Policy Comparison Matrix**",
         "",
         "| " + " | ".join(headers) + " |",
         "| " + " | ".join(["---"] * len(headers)) + " |"
     ]
 
     for label, field in params:
-        row_vals = [comparison_benchmarks[p_key][field] for p_key in selected_keys]
+        row_vals = [str(comparison_benchmarks[p_key][field]) for p_key in selected_keys]
         table_lines.append(f"| **{label}** | " + " | ".join(row_vals) + " |")
 
     table_lines.extend([
         "",
-        "#### 💡 Expert Recommendation & Verdict:",
+        "💡 **Expert Recommendation & Verdict:**",
     ])
 
     if policy_catalog and selected_keys:
@@ -174,3 +190,4 @@ def comparison_agent_node(state: AgentState) -> AgentState:
     state["comparison_table"] = matrix
     state["agent_used"] = "ComparisonAgent"
     return state
+

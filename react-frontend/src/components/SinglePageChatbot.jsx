@@ -1,27 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { chatAPI, profileAPI, policyAPI, faqAPI } from '../api';
-import { 
-  Bot, 
-  Send, 
-  Sparkles, 
-  History, 
-  UserCheck, 
-  BookOpen, 
-  HelpCircle, 
-  LogOut, 
-  Plus, 
-  X, 
-  CheckCircle2, 
-  Award, 
-  Search, 
-  Save, 
-  Book, 
-  ChevronDown, 
+import {
+  Bot,
+  Send,
+  Sparkles,
+  History,
+  UserCheck,
+  BookOpen,
+  HelpCircle,
+  LogOut,
+  Plus,
+  X,
+  CheckCircle2,
+  Award,
+  Search,
+  Save,
+  Book,
+  ChevronDown,
   ChevronUp,
   Shield,
   Trash2,
   Pencil,
+  Info,
   Check
 } from 'lucide-react';
 
@@ -101,6 +102,172 @@ const getINRHelperText = (value) => {
   return `₹${num.toLocaleString("en-IN")}`;
 };
 
+const CITIES_DATA = [
+  // Tier 1
+  { city: "Ahmedabad", state: "Gujarat", tier: "Tier 1" },
+  { city: "Bengaluru", state: "Karnataka", tier: "Tier 1" },
+  { city: "Chennai", state: "Tamil Nadu", tier: "Tier 1" },
+  { city: "Delhi", state: "Delhi", tier: "Tier 1" },
+  { city: "Hyderabad", state: "Telangana", tier: "Tier 1" },
+  { city: "Kolkata", state: "West Bengal", tier: "Tier 1" },
+  { city: "Mumbai", state: "Maharashtra", tier: "Tier 1" },
+  { city: "Pune", state: "Maharashtra", tier: "Tier 1" },
+
+  // Tier 2
+  { city: "Agra", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Ajmer", state: "Rajasthan", tier: "Tier 2" },
+  { city: "Akola", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Aligarh", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Amravati", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Amritsar", state: "Punjab", tier: "Tier 2" },
+  { city: "Anand", state: "Gujarat", tier: "Tier 2" },
+  { city: "Asansol", state: "West Bengal", tier: "Tier 2" },
+  { city: "Aurangabad", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Bareilly", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Bardhaman", state: "West Bengal", tier: "Tier 2" },
+  { city: "Belagavi", state: "Karnataka", tier: "Tier 2" },
+  { city: "Berhampur", state: "Odisha", tier: "Tier 2" },
+  { city: "Bhavnagar", state: "Gujarat", tier: "Tier 2" },
+  { city: "Bhiwandi", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Bhopal", state: "Madhya Pradesh", tier: "Tier 2" },
+  { city: "Bhubaneswar", state: "Odisha", tier: "Tier 2" },
+  { city: "Bikaner", state: "Rajasthan", tier: "Tier 2" },
+  { city: "Bilaspur", state: "Chhattisgarh", tier: "Tier 2" },
+  { city: "Bokaro Steel City", state: "Jharkhand", tier: "Tier 2" },
+  { city: "Ballari", state: "Karnataka", tier: "Tier 2" },
+  { city: "Bhilai", state: "Chhattisgarh", tier: "Tier 2" },
+  { city: "Chandigarh", state: "Chandigarh", tier: "Tier 2" },
+  { city: "Coimbatore", state: "Tamil Nadu", tier: "Tier 2" },
+  { city: "Cuttack", state: "Odisha", tier: "Tier 2" },
+  { city: "Dahod", state: "Gujarat", tier: "Tier 2" },
+  { city: "Dehradun", state: "Uttarakhand", tier: "Tier 2" },
+  { city: "Dhule", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Dombivli", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Dhanbad", state: "Jharkhand", tier: "Tier 2" },
+  { city: "Durgapur", state: "West Bengal", tier: "Tier 2" },
+  { city: "Erode", state: "Tamil Nadu", tier: "Tier 2" },
+  { city: "Faridabad", state: "Haryana", tier: "Tier 2" },
+  { city: "Ghaziabad", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Gorakhpur", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Guntur", state: "Andhra Pradesh", tier: "Tier 2" },
+  { city: "Gurugram", state: "Haryana", tier: "Tier 2" },
+  { city: "Guwahati", state: "Assam", tier: "Tier 2" },
+  { city: "Gwalior", state: "Madhya Pradesh", tier: "Tier 2" },
+  { city: "Hamirpur", state: "Himachal Pradesh", tier: "Tier 2" },
+  { city: "Hubballi-Dharwad", state: "Karnataka", tier: "Tier 2" },
+  { city: "Indore", state: "Madhya Pradesh", tier: "Tier 2" },
+  { city: "Jabalpur", state: "Madhya Pradesh", tier: "Tier 2" },
+  { city: "Jaipur", state: "Rajasthan", tier: "Tier 2" },
+  { city: "Jalandhar", state: "Punjab", tier: "Tier 2" },
+  { city: "Jalgaon", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Jammu", state: "Jammu and Kashmir", tier: "Tier 2" },
+  { city: "Jamshedpur", state: "Jharkhand", tier: "Tier 2" },
+  { city: "Jamnagar", state: "Gujarat", tier: "Tier 2" },
+  { city: "Jhansi", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Jodhpur", state: "Rajasthan", tier: "Tier 2" },
+  { city: "Kalaburagi", state: "Karnataka", tier: "Tier 2" },
+  { city: "Kakinada", state: "Andhra Pradesh", tier: "Tier 2" },
+  { city: "Kannur", state: "Kerala", tier: "Tier 2" },
+  { city: "Kanpur", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Karimnagar", state: "Telangana", tier: "Tier 2" },
+  { city: "Karnal", state: "Haryana", tier: "Tier 2" },
+  { city: "Kochi", state: "Kerala", tier: "Tier 2" },
+  { city: "Kolhapur", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Kollam", state: "Kerala", tier: "Tier 2" },
+  { city: "Kota", state: "Rajasthan", tier: "Tier 2" },
+  { city: "Kozhikode", state: "Kerala", tier: "Tier 2" },
+  { city: "Kumbakonam", state: "Tamil Nadu", tier: "Tier 2" },
+  { city: "Kurnool", state: "Andhra Pradesh", tier: "Tier 2" },
+  { city: "Ludhiana", state: "Punjab", tier: "Tier 2" },
+  { city: "Lucknow", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Madurai", state: "Tamil Nadu", tier: "Tier 2" },
+  { city: "Malappuram", state: "Kerala", tier: "Tier 2" },
+  { city: "Mathura-Vrindavan", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Mangaluru", state: "Karnataka", tier: "Tier 2" },
+  { city: "Meerut", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Mohali", state: "Punjab", tier: "Tier 2" },
+  { city: "Moradabad", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Mysuru", state: "Karnataka", tier: "Tier 2" },
+  { city: "Nagpur", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Nanded", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Nadiad", state: "Gujarat", tier: "Tier 2" },
+  { city: "Nashik", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Nellore", state: "Andhra Pradesh", tier: "Tier 2" },
+  { city: "Noida", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Patna", state: "Bihar", tier: "Tier 2" },
+  { city: "Pimpri-Chinchwad", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Puducherry", state: "Puducherry", tier: "Tier 2" },
+  { city: "Purulia", state: "West Bengal", tier: "Tier 2" },
+  { city: "Prayagraj", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Raipur", state: "Chhattisgarh", tier: "Tier 2" },
+  { city: "Rajkot", state: "Gujarat", tier: "Tier 2" },
+  { city: "Ranchi", state: "Jharkhand", tier: "Tier 2" },
+  { city: "Rourkela", state: "Odisha", tier: "Tier 2" },
+  { city: "Ratlam", state: "Madhya Pradesh", tier: "Tier 2" },
+  { city: "Raichur", state: "Karnataka", tier: "Tier 2" },
+  { city: "Saharanpur", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Salem", state: "Tamil Nadu", tier: "Tier 2" },
+  { city: "Sangli", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Shimla", state: "Himachal Pradesh", tier: "Tier 2" },
+  { city: "Siliguri", state: "West Bengal", tier: "Tier 2" },
+  { city: "Solapur", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Srinagar", state: "Jammu and Kashmir", tier: "Tier 2" },
+  { city: "Surat", state: "Gujarat", tier: "Tier 2" },
+  { city: "Thanjavur", state: "Tamil Nadu", tier: "Tier 2" },
+  { city: "Thiruvananthapuram", state: "Kerala", tier: "Tier 2" },
+  { city: "Thrissur", state: "Kerala", tier: "Tier 2" },
+  { city: "Tiruchirappalli", state: "Tamil Nadu", tier: "Tier 2" },
+  { city: "Tirunelveli", state: "Tamil Nadu", tier: "Tier 2" },
+  { city: "Tiruvannamalai", state: "Tamil Nadu", tier: "Tier 2" },
+  { city: "Ujjain", state: "Madhya Pradesh", tier: "Tier 2" },
+  { city: "Vijayapura", state: "Karnataka", tier: "Tier 2" },
+  { city: "Vadodara", state: "Gujarat", tier: "Tier 2" },
+  { city: "Varanasi", state: "Uttar Pradesh", tier: "Tier 2" },
+  { city: "Vasai-Virar", state: "Maharashtra", tier: "Tier 2" },
+  { city: "Vijayawada", state: "Andhra Pradesh", tier: "Tier 2" },
+  { city: "Visakhapatnam", state: "Andhra Pradesh", tier: "Tier 2" },
+  { city: "Vellore", state: "Tamil Nadu", tier: "Tier 2" },
+  { city: "Warangal", state: "Telangana", tier: "Tier 2" },
+
+  // Tier 3
+  { city: "Amaravati", state: "Andhra Pradesh", tier: "Tier 3" },
+  { city: "Itanagar", state: "Arunachal Pradesh", tier: "Tier 3" },
+  { city: "Tezpur", state: "Assam", tier: "Tier 3" },
+  { city: "Gaya", state: "Bihar", tier: "Tier 3" },
+  { city: "Jagdalpur", state: "Chhattisgarh", tier: "Tier 3" },
+  { city: "Panaji", state: "Goa", tier: "Tier 3" },
+  { city: "Gandhinagar", state: "Gujarat", tier: "Tier 3" },
+  { city: "Hisar", state: "Haryana", tier: "Tier 3" },
+  { city: "Dharamshala", state: "Himachal Pradesh", tier: "Tier 3" },
+  { city: "Deoghar", state: "Jharkhand", tier: "Tier 3" },
+  { city: "Shivamogga", state: "Karnataka", tier: "Tier 3" },
+  { city: "Alappuzha", state: "Kerala", tier: "Tier 3" },
+  { city: "Sagar", state: "Madhya Pradesh", tier: "Tier 3" },
+  { city: "Latur", state: "Maharashtra", tier: "Tier 3" },
+  { city: "Imphal", state: "Manipur", tier: "Tier 3" },
+  { city: "Shillong", state: "Meghalaya", tier: "Tier 3" },
+  { city: "Aizawl", state: "Mizoram", tier: "Tier 3" },
+  { city: "Kohima", state: "Nagaland", tier: "Tier 3" },
+  { city: "Sambalpur", state: "Odisha", tier: "Tier 3" },
+  { city: "Bathinda", state: "Punjab", tier: "Tier 3" },
+  { city: "Udaipur", state: "Rajasthan", tier: "Tier 3" },
+  { city: "Gangtok", state: "Sikkim", tier: "Tier 3" },
+  { city: "Thoothukudi", state: "Tamil Nadu", tier: "Tier 3" },
+  { city: "Nizamabad", state: "Telangana", tier: "Tier 3" },
+  { city: "Agartala", state: "Tripura", tier: "Tier 3" },
+  { city: "Haridwar", state: "Uttarakhand", tier: "Tier 3" },
+  { city: "Ayodhya", state: "Uttar Pradesh", tier: "Tier 3" },
+  { city: "Darjeeling", state: "West Bengal", tier: "Tier 3" },
+  { city: "Port Blair", state: "Andaman and Nicobar Islands", tier: "Tier 3" },
+  { city: "Silvassa", state: "Dadra and Nagar Haveli and Daman and Diu", tier: "Tier 3" },
+  { city: "Daman", state: "Dadra and Nagar Haveli and Daman and Diu", tier: "Tier 3" },
+  { city: "Leh", state: "Ladakh", tier: "Tier 3" },
+  { city: "Kavaratti", state: "Lakshadweep", tier: "Tier 3" },
+  { city: "Other / Unlisted City", state: "Other", tier: "Tier 3" }
+];
+
+
+
 
 const QUICK_PROMPTS = [
   { text: "💡 Recommend best policy", query: "Can you recommend the top health insurance policy based on my health profile and budget?" },
@@ -116,18 +283,24 @@ const FormattedMessage = ({ content }) => {
   if (!content) return null;
 
   const parseBlocks = (text) => {
-    // Strip trailing citations and inline bracket citations
+    // Aggressively strip all bracketed citations, page numbers, and citation section footers
     let cleanText = text
       .replace(/📖 Policy Excerpt Citations:[\s\S]*$/gi, '')
-      .replace(/\[Company:.*?\]/gi, '')
-      .replace(/\[Policy:.*?\]/gi, '')
-      .replace(/\[Page:.*?\]/gi, '')
-      .replace(/\[[^\]]*?Page:\s*\d+[^\]]*?\]/gi, '')
-      .replace(/\[[^\]]*?Company:[^\]]*?\]/gi, '')
+      .replace(/📖 Policy Citations & Excerpts:[\s\S]*$/gi, '')
+      .replace(/📖 Citations:[\s\S]*$/gi, '')
+      .replace(/\[\s*(Company|Policy|Page|Source)[^\]]*?\]/gi, '')
+      .replace(/\[[^\]]*?(Company|Policy|Page):\s*[^\]]*?\]/gi, '')
+      .replace(/\[[^\]]*?Page\s*\d+[^\]]*?\]/gi, '')
+      .replace(/(,\s*|\s+)?\(?\s*Page:\s*\d+\s*\)?/gi, '')
+      .replace(/(,\s*|\s+)?\(?\s*Page\s+\d+\s*\)?/gi, '')
+      .replace(/\(\s*\)/g, '')
+      .replace(/\[\s*\]/g, '')
+      .replace(/,\s*,/g, ',')
+      .replace(/\s{2,}/g, ' ')
       .trim();
 
-
     const lines = cleanText.split('\n');
+
     const blocks = [];
     let tableRows = [];
     let inTable = false;
@@ -303,6 +476,10 @@ export const SinglePageChatbot = () => {
   const [drawerPedOpen, setDrawerPedOpen] = useState(false);
   const drawerPedRef = useRef(null);
 
+  const [citySearchInput, setCitySearchInput] = useState('');
+  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+  const cityDropdownRef = useRef(null);
+
   // Catalog State
   const [policies, setPolicies] = useState([]);
   const [catalogSearch, setCatalogSearch] = useState('');
@@ -332,6 +509,9 @@ export const SinglePageChatbot = () => {
         budget_annual_max: userProfile.budget_annual_max !== null && userProfile.budget_annual_max !== undefined ? userProfile.budget_annual_max : '',
         tobacco_user: !!userProfile.tobacco_user,
       });
+      if (userProfile.city) {
+        setCitySearchInput(userProfile.city);
+      }
     }
   }, [userProfile]);
 
@@ -340,10 +520,37 @@ export const SinglePageChatbot = () => {
       if (drawerPedRef.current && !drawerPedRef.current.contains(event.target)) {
         setDrawerPedOpen(false);
       }
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
+        setCityDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const findCityData = (cityName) => {
+    if (!cityName) return { city: "Other / Unlisted City", state: "Other", tier: "Tier 3" };
+    const found = CITIES_DATA.find(c => c.city.toLowerCase() === cityName.toLowerCase());
+    if (found) return found;
+    return { city: cityName, state: "Other", tier: "Tier 3" };
+  };
+
+
+  const handleSelectCity = (c) => {
+    setProfileForm(prev => ({
+      ...prev,
+      city: c.city,
+      city_tier: c.tier
+    }));
+    setCitySearchInput(c.city);
+    setCityDropdownOpen(false);
+  };
+
+  const filteredCities = CITIES_DATA.filter(c => 
+    c.city.toLowerCase().includes((citySearchInput || '').toLowerCase()) ||
+    c.state.toLowerCase().includes((citySearchInput || '').toLowerCase())
+  );
+
 
   const handleDrawerPedToggle = (opt) => {
     if (opt.startsWith("None")) {
@@ -528,11 +735,18 @@ export const SinglePageChatbot = () => {
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
+    if (profileForm.age !== '' && Number(profileForm.age) <= 0) {
+      alert('Please enter a valid age greater than 0.');
+      return;
+    }
     setSavingProfile(true);
+
     setProfileSuccess(false);
     try {
+      const computedTier = findCityData(profileForm.city).tier;
       const payload = {
         ...profileForm,
+        city_tier: profileForm.city_tier || computedTier,
         age: profileForm.age !== '' ? Number(profileForm.age) : 30,
         family_members_count: isDrawerFamilyCoverage
           ? (profileForm.family_members_count !== '' ? Number(profileForm.family_members_count) : 2)
@@ -540,6 +754,7 @@ export const SinglePageChatbot = () => {
         sum_insured_preference: profileForm.sum_insured_preference !== '' ? Number(profileForm.sum_insured_preference) : 1000000,
         budget_annual_max: profileForm.budget_annual_max !== '' ? Number(profileForm.budget_annual_max) : 25000,
       };
+
       await profileAPI.updateProfile(payload);
       await refreshProfile();
       setProfileSuccess(true);
@@ -583,24 +798,24 @@ export const SinglePageChatbot = () => {
             <span>Multi-Agent RAG Online</span>
           </div>
 
-          <button 
-            className="btn-secondary" 
+          <button
+            className="btn-secondary"
             style={{ padding: '6px 14px', fontSize: '0.82rem', background: activeDrawer === 'profile' ? 'rgba(16,185,129,0.2)' : '' }}
             onClick={() => setActiveDrawer(activeDrawer === 'profile' ? 'none' : 'profile')}
           >
             <UserCheck size={16} /> Profile Details
           </button>
 
-          <button 
-            className="btn-secondary" 
+          <button
+            className="btn-secondary"
             style={{ padding: '6px 14px', fontSize: '0.82rem', background: activeDrawer === 'catalog' ? 'rgba(16,185,129,0.2)' : '' }}
             onClick={() => setActiveDrawer(activeDrawer === 'catalog' ? 'none' : 'catalog')}
           >
             <BookOpen size={16} /> Products
           </button>
 
-          <button 
-            className="btn-secondary" 
+          <button
+            className="btn-secondary"
             style={{ padding: '6px 14px', fontSize: '0.82rem', background: activeDrawer === 'faqs' ? 'rgba(16,185,129,0.2)' : '' }}
             onClick={() => setActiveDrawer(activeDrawer === 'faqs' ? 'none' : 'faqs')}
           >
@@ -651,7 +866,7 @@ export const SinglePageChatbot = () => {
                 onClick={() => loadSession(s)}
               >
                 <Bot size={15} style={{ flexShrink: 0, color: 'var(--cyan)' }} />
-                
+
                 {editingSessionId === s.id ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }} onClick={(e) => e.stopPropagation()}>
                     <input
@@ -799,12 +1014,33 @@ export const SinglePageChatbot = () => {
 
               <form onSubmit={handleSaveProfile}>
                 <div className="form-group">
-                  <label className="form-label">Age</label>
-                  <input type="number" className="form-input" value={profileForm.age} onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })} placeholder="e.g. 30" required />
+                  <label className="form-label">
+                    Age <span style={{ color: '#fb7185', marginLeft: '2px' }}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    style={{
+                      borderColor: profileForm.age !== '' && Number(profileForm.age) <= 0 ? '#fb7185' : undefined,
+                    }}
+                    value={profileForm.age}
+                    onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })}
+                    placeholder="e.g. 30"
+                    min="1"
+                    required
+                  />
+                  {profileForm.age !== '' && Number(profileForm.age) <= 0 && (
+                    <div style={{ fontSize: '0.78rem', color: '#fb7185', marginTop: '4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      ⚠️ Age must be a valid positive number greater than 0 (e.g. 1 to 100).
+                    </div>
+                  )}
                 </div>
 
+
                 <div className="form-group">
-                  <label className="form-label">Gender</label>
+                  <label className="form-label">
+                    Gender <span style={{ color: '#fb7185', marginLeft: '2px' }}>*</span>
+                  </label>
                   <select className="form-select" value={profileForm.gender} onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })} required>
                     <option value="">Select Gender</option>
                     <option value="Male">Male</option>
@@ -813,13 +1049,128 @@ export const SinglePageChatbot = () => {
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">City</label>
-                  <input type="text" className="form-input" value={profileForm.city} onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })} placeholder="e.g. Mumbai" required />
+                {/* City: Searchable Dropdown with Autocomplete */}
+                <div className="form-group" style={{ position: "relative" }} ref={cityDropdownRef}>
+                  <label className="form-label">
+                    City <span style={{ color: '#fb7185', marginLeft: '2px' }}>*</span>
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={citySearchInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCitySearchInput(val);
+                        setCityDropdownOpen(true);
+                        const matched = findCityData(val);
+                        setProfileForm((prev) => ({
+                          ...prev,
+                          city: val,
+                          city_tier: matched.tier,
+                        }));
+                      }}
+                      onFocus={() => setCityDropdownOpen(true)}
+                      placeholder="Type to search city (e.g. Delhi, Pune, Patna)..."
+                      required
+                    />
+                    <ChevronDown
+                      size={16}
+                      style={{
+                        position: "absolute",
+                        right: "12px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        color: "var(--text-muted)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  </div>
+
+                  {cityDropdownOpen && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        marginTop: "4px",
+                        background: "#0f172a",
+                        border: "1px solid var(--border-highlight)",
+                        borderRadius: "var(--radius-md)",
+                        zIndex: 1000,
+                        maxHeight: "220px",
+                        overflowY: "auto",
+                        padding: "6px",
+                        boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                      }}
+                    >
+                      {filteredCities.length > 0 ? (
+                        filteredCities.map((c) => (
+                          <div
+                            key={c.city}
+                            onClick={() => handleSelectCity(c)}
+                            style={{
+                              padding: "8px 12px",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              cursor: "pointer",
+                              borderRadius: "var(--radius-sm)",
+                              fontSize: "0.83rem",
+                              background: profileForm.city === c.city ? "rgba(16, 185, 129, 0.15)" : "transparent",
+                              color: profileForm.city === c.city ? "#34d399" : "var(--text-main)",
+                              marginBottom: "2px",
+                            }}
+                          >
+                            <div>
+                              <strong style={{ color: "#f8fafc" }}>{c.city}</strong>
+                              <span style={{ color: "var(--text-muted)", fontSize: "0.76rem", marginLeft: "6px" }}>
+                                ({c.state})
+                              </span>
+                            </div>
+                            <span
+                              style={{
+                                fontSize: "0.72rem",
+                                padding: "2px 8px",
+                                borderRadius: "999px",
+                                fontWeight: 700,
+                                background: c.tier === "Tier 1" ? "rgba(16, 185, 129, 0.2)" : c.tier === "Tier 2" ? "rgba(6, 182, 212, 0.2)" : "rgba(148, 163, 184, 0.2)",
+                                color: c.tier === "Tier 1" ? "#34d399" : c.tier === "Tier 2" ? "#38bdf8" : "#cbd5e1",
+                              }}
+                            >
+                              {c.tier}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div
+                          onClick={() => handleSelectCity({ city: citySearchInput || "Other", state: "Other", tier: "Tier 3" })}
+                          style={{
+                            padding: "10px 12px",
+                            cursor: "pointer",
+                            fontSize: "0.83rem",
+                            color: "#38bdf8",
+                            textAlign: "center",
+                          }}
+                        >
+                          ➕ Select "{citySearchInput}" as <strong>Other / Unlisted City (Tier 3)</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
+
+
+
+
+
+
                 <div className="form-group">
-                  <label className="form-label">Coverage Type</label>
+                  <label className="form-label">
+                    Coverage Type <span style={{ color: '#fb7185', marginLeft: '2px' }}>*</span>
+                  </label>
                   <select className="form-select" value={profileForm.coverage_type} onChange={(e) => setProfileForm({ ...profileForm, coverage_type: e.target.value })} required>
                     <option value="">Select Coverage Type</option>
                     <option value="Individual">Individual</option>
@@ -831,13 +1182,17 @@ export const SinglePageChatbot = () => {
                 {/* Only show Family Members Count when Family Floater / Family Plan is selected */}
                 {isDrawerFamilyCoverage && (
                   <div className="form-group">
-                    <label className="form-label">Family Members Count</label>
+                    <label className="form-label">
+                      Family Members Count <span style={{ color: '#fb7185', marginLeft: '2px' }}>*</span>
+                    </label>
                     <input type="number" className="form-input" value={profileForm.family_members_count} onChange={(e) => setProfileForm({ ...profileForm, family_members_count: e.target.value })} placeholder="e.g. 2, 4" min="1" required />
                   </div>
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">Sum Insured Preference (₹)</label>
+                  <label className="form-label">
+                    Sum Insured Preference (₹) <span style={{ color: '#fb7185', marginLeft: '2px' }}>*</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input"
@@ -854,7 +1209,9 @@ export const SinglePageChatbot = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Max Annual Premium Budget (₹)</label>
+                  <label className="form-label">
+                    Max Annual Premium Budget (₹) <span style={{ color: '#fb7185', marginLeft: '2px' }}>*</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input"
@@ -869,6 +1226,7 @@ export const SinglePageChatbot = () => {
                     </div>
                   )}
                 </div>
+
 
                 {/* Pre-Existing Diseases: Multi-Select Dropdown */}
                 <div className="form-group" style={{ position: "relative" }} ref={drawerPedRef}>

@@ -17,35 +17,16 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-async def login(
-    request: Request,
+def login(
+    user_in: UserLogin,
     db: Session = Depends(get_db)
 ):
-    """Authenticate user and obtain JWT token (supports both JSON body and OAuth2 Form Data)."""
-    email = None
-    password = None
-
-    content_type = request.headers.get("content-type", "")
-
-    if "application/json" in content_type:
-        try:
-            body = await request.json()
-            email = body.get("email") or body.get("username")
-            password = body.get("password")
-        except Exception:
-            pass
-    else:
-        try:
-            form = await request.form()
-            email = form.get("username") or form.get("email")
-            password = form.get("password")
-        except Exception:
-            pass
-
-    if not email or not password:
+    """Authenticate user and obtain JWT token."""
+    if not user_in.email or not user_in.password:
         raise HTTPException(status_code=422, detail="Email and Password are required")
 
-    return authenticate_user(db, str(email), str(password))
+    return authenticate_user(db, str(user_in.email), str(user_in.password))
+
 
 
 

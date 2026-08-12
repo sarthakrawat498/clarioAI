@@ -24,6 +24,7 @@ def compare_policies(req: PolicyCompareRequest, db: Session = Depends(get_db)):
     matrix = {}
     params = [
         ("Insurer", "insurer_name"),
+        ("Sum Insured Options", "sum_insured_options"),
         ("Room Rent Category", "room_rent_limit"),
         ("Co-Pay Percentage", "co_pay_percentage"),
         ("PED Waiting Period (Months)", "ped_waiting_period_months"),
@@ -38,8 +39,13 @@ def compare_policies(req: PolicyCompareRequest, db: Session = Depends(get_db)):
     for label, attr in params:
         matrix[label] = {}
         for p in selected_policies:
-            if attr == "pre_post_days":
+            if attr == "sum_insured_options":
+                min_l = f"₹{p.base_sum_insured_min/100000:,.0f} Lakhs" if p.base_sum_insured_min >= 100000 else f"₹{p.base_sum_insured_min:,.0f}"
+                max_c = f"₹{p.base_sum_insured_max/10000000:,.0f} Crore" if p.base_sum_insured_max >= 10000000 else f"₹{p.base_sum_insured_max/100000:,.0f} Lakhs"
+                val = f"{min_l} to {max_c} (Flexible)"
+            elif attr == "pre_post_days":
                 val = f"{p.pre_hospitalization_days} Days / {p.post_hospitalization_days} Days"
+
             elif attr == "co_pay_percentage":
                 val = f"{p.co_pay_percentage}%"
             elif attr == "claim_settlement_ratio":

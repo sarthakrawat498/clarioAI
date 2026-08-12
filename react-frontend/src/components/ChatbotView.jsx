@@ -34,14 +34,21 @@ const FormattedMessage = ({ content }) => {
   const parseBlocks = (text) => {
     let cleanText = text
       .replace(/📖 Policy Excerpt Citations:[\s\S]*$/gi, '')
-      .replace(/\[Company:.*?\]/gi, '')
-      .replace(/\[Policy:.*?\]/gi, '')
-      .replace(/\[Page:.*?\]/gi, '')
-      .replace(/\[[^\]]*?Page:\s*\d+[^\]]*?\]/gi, '')
-      .replace(/\[[^\]]*?Company:[^\]]*?\]/gi, '')
+      .replace(/📖 Policy Citations & Excerpts:[\s\S]*$/gi, '')
+      .replace(/📖 Citations:[\s\S]*$/gi, '')
+      .replace(/\[\s*(Company|Policy|Page|Source)[^\]]*?\]/gi, '')
+      .replace(/\[[^\]]*?(Company|Policy|Page):\s*[^\]]*?\]/gi, '')
+      .replace(/\[[^\]]*?Page\s*\d+[^\]]*?\]/gi, '')
+      .replace(/(,\s*|\s+)?\(?\s*Page:\s*\d+\s*\)?/gi, '')
+      .replace(/(,\s*|\s+)?\(?\s*Page\s+\d+\s*\)?/gi, '')
+      .replace(/\(\s*\)/g, '')
+      .replace(/\[\s*\]/g, '')
+      .replace(/,\s*,/g, ',')
+      .replace(/\s{2,}/g, ' ')
       .trim();
 
     const lines = cleanText.split('\n');
+
     const blocks = [];
     let tableRows = [];
     let inTable = false;
