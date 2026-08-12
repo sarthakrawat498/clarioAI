@@ -186,10 +186,16 @@ def seed_policy_catalog(db: Session):
     sync_policy_catalog(db)
 
 
-def get_all_policies(db: Session) -> List[PolicyCatalog]:
-    """Fetch policy catalogue."""
+def get_all_policies(db: Session, budget_annual_max: float | None = None) -> List[PolicyCatalog]:
+    """Fetch policy catalogue, optionally restricted to affordable policies."""
     sync_policy_catalog(db)
-    return db.query(PolicyCatalog).order_by(PolicyCatalog.insurer_name.asc(), PolicyCatalog.policy_name.asc()).all()
+    query = db.query(PolicyCatalog)
+    if budget_annual_max is not None:
+        query = query.filter(
+            PolicyCatalog.base_annual_premium_estimate.isnot(None),
+            PolicyCatalog.base_annual_premium_estimate <= budget_annual_max,
+        )
+    return query.order_by(PolicyCatalog.insurer_name.asc(), PolicyCatalog.policy_name.asc()).all()
 
 
 def get_policy_by_id(db: Session, policy_id: int) -> PolicyCatalog:

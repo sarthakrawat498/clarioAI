@@ -39,6 +39,32 @@ export const RecommendationsView = () => {
 
   const topRecs = recommendations?.top_recommendations || [];
 
+  if (!topRecs.length) {
+    return (
+      <div>
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Sparkles size={24} style={{ color: 'var(--amber)' }} />
+            Smart Policy Recommendations
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
+            {recommendations?.general_advice || 'Personalized health policy matches tuned to your health profile and budget preferences.'}
+          </p>
+        </div>
+
+        <div className="glass-card" style={{ textAlign: 'center', padding: '36px 24px' }}>
+          <ShieldCheck size={30} style={{ color: 'var(--cyan)', margin: '0 auto 12px' }} />
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '8px' }}>
+            No affordable policies found
+          </h3>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '560px', margin: '0 auto' }}>
+            Your current budget filter excludes all available policies. Update your budget to see matching plans.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div style={{ marginBottom: '24px' }}>

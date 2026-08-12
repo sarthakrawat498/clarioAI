@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
   Shield,
+  Info,
   Trash2,
   Pencil,
   Info,

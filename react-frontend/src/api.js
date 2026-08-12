@@ -74,12 +74,16 @@ export const chatAPI = {
 
 
 export const policyAPI = {
-  getPolicies: async () => {
-    const response = await apiClient.get('/policies');
+  getPolicies: async (budget_annual_max = null) => {
+    const response = await apiClient.get('/policies', {
+      params: budget_annual_max !== null && budget_annual_max !== undefined && budget_annual_max !== ''
+        ? { budget_annual_max }
+        : {},
+    });
     return response.data;
   },
   comparePolicies: async (policy_id_1, policy_id_2) => {
-    const response = await apiClient.get('/compare', { params: { policy_id_1, policy_id_2 } });
+    const response = await apiClient.post('/compare', { policy_ids: [policy_id_1, policy_id_2] });
     return response.data;
   },
   getRecommendations: async () => {

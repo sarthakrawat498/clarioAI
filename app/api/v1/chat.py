@@ -70,9 +70,21 @@ def handle_chat_query(
     db.add(user_msg)
     db.commit()
 
+    # Build conversational context for short follow-up intents (e.g., "yes").
+    recent_messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at.asc()).all()
+    conversation_messages = [
+        {
+            "role": "assistant" if m.sender == "assistant" else "user",
+            "content": m.content,
+            "agent_name": m.agent_name,
+        }
+        for m in recent_messages
+    ]
+
     # 4. Invoke LangGraph Multi-Agent Workflow
     agent_output = run_agent_workflow(
         query=req.message,
+        messages=conversation_messages,
         user_profile=user_profile_dict,
         policy_catalog=policy_catalog,
         filter_company=req.filter_company,

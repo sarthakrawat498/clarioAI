@@ -37,7 +37,7 @@ def get_recommendations(
         "budget_annual_max": profile_obj.budget_annual_max
     }
 
-    policy_catalog = serialize_policy_catalog(get_all_policies(db))
+    policy_catalog = serialize_policy_catalog(get_all_policies(db, profile_obj.budget_annual_max))
 
     state_input = {"query": "recommend best health policy for my profile", "user_profile": profile_dict, "policy_catalog": policy_catalog}
     sales_output = sales_agent_node(state_input)

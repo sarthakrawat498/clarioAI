@@ -36,6 +36,8 @@ def _is_no_capping(text: Any) -> bool:
 
 def _build_dynamic_candidate(policy: Dict[str, Any], age: int, budget: float, peds: List[str]) -> Dict[str, Any]:
     premium = float(policy.get("base_annual_premium_estimate") or 12500.0)
+    if budget is not None and premium > budget:
+        return {}
     room_rent_limit = policy.get("room_rent_limit", "Standard Coverage")
     restoration_benefit = policy.get("restoration_benefit", "Restore Benefit")
     no_claim_bonus = policy.get("no_claim_bonus", "No Claim Bonus")
@@ -173,9 +175,13 @@ def sales_agent_node(state: AgentState) -> AgentState:
     candidates = []
     if policy_catalog:
         for policy in policy_catalog:
-            candidates.append(_build_dynamic_candidate(policy, age, budget, peds))
+            candidate = _build_dynamic_candidate(policy, age, budget, peds)
+            if candidate:
+                candidates.append(candidate)
     else:
         candidates = _static_candidates()
+        if budget is not None:
+            candidates = [plan for plan in candidates if float(plan.get("est_premium") or 0.0) <= budget]
 
     scored = []
     for plan in candidates:
@@ -193,7 +199,9 @@ def sales_agent_node(state: AgentState) -> AgentState:
     answer = ""
     if settings.OPENAI_API_KEY and len(settings.OPENAI_API_KEY.strip()) > 10:
         try:
-            from langchain_openai import ChatOpenAI
+            from importlib import import_module
+
+            ChatOpenAI = import_module("langchain_openai").ChatOpenAI
             llm_kwargs = {
                 "model": settings.effective_model,
                 "openai_api_key": settings.OPENAI_API_KEY,

@@ -75,6 +75,7 @@ agent_graph = build_health_insurance_graph()
 
 def run_agent_workflow(
     query: str,
+    messages: List[Dict[str, str]] = None,
     user_profile: Dict[str, Any] = None,
     policy_catalog: List[Dict[str, Any]] = None,
     filter_company: str = None,
@@ -84,7 +85,7 @@ def run_agent_workflow(
     initial_state: AgentState = {
         "query": query,
         "user_profile": user_profile or {},
-        "messages": [{"role": "user", "content": query}],
+        "messages": messages or [{"role": "user", "content": query}],
         "intent": "FAQ",
         "retrieved_docs": [],
         "sources": [],

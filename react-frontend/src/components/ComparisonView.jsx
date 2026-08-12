@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { policyAPI } from '../api';
 import { Scale, ArrowRightLeft, Check, X } from 'lucide-react';
 
 export const ComparisonView = () => {
+  const { userProfile } = useAuth();
   const [policies, setPolicies] = useState([]);
   const [p1Id, setP1Id] = useState('');
   const [p2Id, setP2Id] = useState('');
@@ -11,15 +13,22 @@ export const ComparisonView = () => {
 
   useEffect(() => {
     fetchPolicies();
-  }, []);
+  }, [userProfile?.budget_annual_max]);
 
   const fetchPolicies = async () => {
     try {
-      const list = await policyAPI.getPolicies();
-      setPolicies(list || []);
-      if (list && list.length >= 2) {
-        setP1Id(list[0].id || list[0].policy_id);
-        setP2Id(list[1].id || list[1].policy_id);
+      const budget = userProfile?.budget_annual_max;
+      const list = await policyAPI.getPolicies(budget);
+      const affordablePolicies = Array.isArray(list)
+        ? list.filter((policy) => {
+            const premium = Number(policy.base_annual_premium_estimate);
+            return !budget || (!Number.isNaN(premium) && premium <= Number(budget));
+          })
+        : [];
+      setPolicies(affordablePolicies);
+      if (affordablePolicies.length >= 2) {
+        setP1Id(affordablePolicies[0].id || affordablePolicies[0].policy_id);
+        setP2Id(affordablePolicies[1].id || affordablePolicies[1].policy_id);
       }
     } catch (e) {
       console.error(e);
