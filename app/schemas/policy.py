@@ -10,19 +10,19 @@ class PolicyOut(BaseModel):
     plan_variant: Optional[str] = "Standard"
     base_sum_insured_min: float
     base_sum_insured_max: float
-    room_rent_limit: str
-    co_pay_percentage: float
-    ped_waiting_period_months: int
-    restoration_benefit: str
-    no_claim_bonus: str
-    pre_hospitalization_days: int
-    post_hospitalization_days: int
+    room_rent_limit: Optional[str] = None
+    co_pay_percentage: Optional[float] = None
+    ped_waiting_period_months: Optional[int] = None
+    restoration_benefit: Optional[str] = None
+    no_claim_bonus: Optional[str] = None
+    pre_hospitalization_days: Optional[int] = None
+    post_hospitalization_days: Optional[int] = None
     daycare_treatments_covered: bool
     organ_donor_cover: bool
     air_ambulance_cover: bool
-    network_hospitals_count: int
-    claim_settlement_ratio: float
-    base_annual_premium_estimate: float
+    network_hospitals_count: Optional[int] = None
+    claim_settlement_ratio: Optional[float] = None
+    base_annual_premium_estimate: Optional[float] = None
     description: Optional[str] = None
     key_highlights: Optional[str] = None
 

@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from langchain_core.documents import Document
 
 try:
@@ -8,6 +8,29 @@ try:
     PYPDF_AVAILABLE = True
 except ImportError:
     PYPDF_AVAILABLE = False
+
+
+def load_and_split_policy_text(content: str, company: str, policy_name: str, source: str, file_path: str, source_pages: Optional[List[int]] = None) -> List[Document]:
+    documents: List[Document] = []
+    pages_raw = content.split("--- PAGE SEPARATOR ---") if "--- PAGE SEPARATOR ---" in content else [content]
+    for page_idx, page_text in enumerate(pages_raw):
+        page_num = source_pages[page_idx] if source_pages and page_idx < len(source_pages) else page_idx + 1
+        paragraphs = [p.strip() for p in page_text.split("\n\n") if p.strip()]
+        for p_idx, para in enumerate(paragraphs):
+            chunk_id = f"{policy_name.lower().replace(' ', '_')}_p{page_num}_c{p_idx + 1}"
+            doc = Document(
+                page_content=para,
+                metadata={
+                    "company": company,
+                    "policy_name": policy_name,
+                    "page": page_num,
+                    "chunk_id": chunk_id,
+                    "source": source,
+                    "file_path": file_path,
+                },
+            )
+            documents.append(doc)
+    return documents
 
 
 def load_and_split_policy_file(file_path: str, company: str, policy_name: str) -> List[Document]:

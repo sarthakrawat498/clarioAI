@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { profileAPI } from "../api";
-import { UserCheck, Save, CheckCircle2, Info, ChevronDown, X } from "lucide-react";
+import {
+  UserCheck,
+  Save,
+  CheckCircle2,
+  Info,
+  ChevronDown,
+  X,
+} from "lucide-react";
 
 const PED_OPTIONS = [
   "None / No Pre-Existing Conditions",
@@ -18,7 +25,7 @@ const PED_OPTIONS = [
 ];
 
 const COVERAGE_DESCRIPTIONS = {
-  "Individual": {
+  Individual: {
     title: "Individual Health Plan",
     icon: "👤",
     description:
@@ -101,7 +108,10 @@ export const ProfileView = ({ onComplete }) => {
   useEffect(() => {
     if (userProfile) {
       setFormData({
-        age: userProfile.age !== null && userProfile.age !== undefined ? userProfile.age : "",
+        age:
+          userProfile.age !== null && userProfile.age !== undefined
+            ? userProfile.age
+            : "",
         gender: userProfile.gender || "",
         city: userProfile.city || "",
         pre_existing_diseases: Array.isArray(userProfile.pre_existing_diseases)
@@ -109,15 +119,18 @@ export const ProfileView = ({ onComplete }) => {
           : [],
         coverage_type: userProfile.coverage_type || "",
         family_members_count:
-          userProfile.family_members_count !== null && userProfile.family_members_count !== undefined
+          userProfile.family_members_count !== null &&
+          userProfile.family_members_count !== undefined
             ? userProfile.family_members_count
             : "",
         sum_insured_preference:
-          userProfile.sum_insured_preference !== null && userProfile.sum_insured_preference !== undefined
+          userProfile.sum_insured_preference !== null &&
+          userProfile.sum_insured_preference !== undefined
             ? userProfile.sum_insured_preference
             : "",
         budget_annual_max:
-          userProfile.budget_annual_max !== null && userProfile.budget_annual_max !== undefined
+          userProfile.budget_annual_max !== null &&
+          userProfile.budget_annual_max !== undefined
             ? userProfile.budget_annual_max
             : "",
         tobacco_user: !!userProfile.tobacco_user,
@@ -144,7 +157,10 @@ export const ProfileView = ({ onComplete }) => {
       const current = prev.pre_existing_diseases || [];
       const filtered = current.filter((item) => !item.startsWith("None"));
       if (filtered.includes(opt)) {
-        return { ...prev, pre_existing_diseases: filtered.filter((d) => d !== opt) };
+        return {
+          ...prev,
+          pre_existing_diseases: filtered.filter((d) => d !== opt),
+        };
       } else {
         return { ...prev, pre_existing_diseases: [...filtered, opt] };
       }
@@ -155,12 +171,15 @@ export const ProfileView = ({ onComplete }) => {
     e.stopPropagation();
     setFormData((prev) => ({
       ...prev,
-      pre_existing_diseases: (prev.pre_existing_diseases || []).filter((t) => t !== tag),
+      pre_existing_diseases: (prev.pre_existing_diseases || []).filter(
+        (t) => t !== tag,
+      ),
     }));
   };
 
   const isFamilyCoverage =
-    formData.coverage_type === "Family Floater" || formData.coverage_type === "Family Plan";
+    formData.coverage_type === "Family Floater" ||
+    formData.coverage_type === "Family Plan";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -170,7 +189,7 @@ export const ProfileView = ({ onComplete }) => {
     try {
       const payload = {
         ...formData,
-        age: formData.age !== "" ? Number(formData.age) : 30,
+        age: formData.age !== "" ? Number(formData.age) : undefined,
         family_members_count: isFamilyCoverage
           ? formData.family_members_count !== ""
             ? Number(formData.family_members_count)
@@ -179,9 +198,11 @@ export const ProfileView = ({ onComplete }) => {
         sum_insured_preference:
           formData.sum_insured_preference !== ""
             ? Number(formData.sum_insured_preference)
-            : 1000000,
+            : undefined,
         budget_annual_max:
-          formData.budget_annual_max !== "" ? Number(formData.budget_annual_max) : 25000,
+          formData.budget_annual_max !== ""
+            ? Number(formData.budget_annual_max)
+            : undefined,
       };
 
       await profileAPI.updateProfile(payload);
@@ -372,14 +393,23 @@ export const ProfileView = ({ onComplete }) => {
                 required
               />
               {formData.sum_insured_preference && (
-                <div style={{ fontSize: "0.78rem", color: "#38bdf8", marginTop: "4px", fontWeight: 600 }}>
+                <div
+                  style={{
+                    fontSize: "0.78rem",
+                    color: "#38bdf8",
+                    marginTop: "4px",
+                    fontWeight: 600,
+                  }}
+                >
                   💡 {getINRHelperText(formData.sum_insured_preference)}
                 </div>
               )}
             </div>
 
             <div className="form-group">
-              <label className="form-label">Max Annual Premium Budget (₹)</label>
+              <label className="form-label">
+                Max Annual Premium Budget (₹)
+              </label>
               <input
                 type="text"
                 className="form-input"
@@ -394,7 +424,14 @@ export const ProfileView = ({ onComplete }) => {
                 required
               />
               {formData.budget_annual_max && (
-                <div style={{ fontSize: "0.78rem", color: "#38bdf8", marginTop: "4px", fontWeight: 600 }}>
+                <div
+                  style={{
+                    fontSize: "0.78rem",
+                    color: "#38bdf8",
+                    marginTop: "4px",
+                    fontWeight: 600,
+                  }}
+                >
                   💡 {getINRHelperText(formData.budget_annual_max)}
                 </div>
               )}
@@ -402,8 +439,14 @@ export const ProfileView = ({ onComplete }) => {
           </div>
 
           {/* Pre-Existing Diseases: Multi-Select Dropdown */}
-          <div className="form-group" style={{ position: "relative" }} ref={pedRef}>
-            <label className="form-label">Pre-Existing Diseases (Multi-Select)</label>
+          <div
+            className="form-group"
+            style={{ position: "relative" }}
+            ref={pedRef}
+          >
+            <label className="form-label">
+              Pre-Existing Diseases (Multi-Select)
+            </label>
             <div
               className="form-input"
               style={{
@@ -419,10 +462,21 @@ export const ProfileView = ({ onComplete }) => {
               }}
               onClick={() => setPedDropdownOpen(!pedDropdownOpen)}
             >
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", flex: 1 }}>
-                {(!formData.pre_existing_diseases || formData.pre_existing_diseases.length === 0) ? (
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                    Select pre-existing health conditions (Insurance Approved Options)...
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "6px",
+                  flex: 1,
+                }}
+              >
+                {!formData.pre_existing_diseases ||
+                formData.pre_existing_diseases.length === 0 ? (
+                  <span
+                    style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}
+                  >
+                    Select pre-existing health conditions (Insurance Approved
+                    Options)...
                   </span>
                 ) : (
                   formData.pre_existing_diseases.map((item) => (
@@ -474,7 +528,8 @@ export const ProfileView = ({ onComplete }) => {
               >
                 {PED_OPTIONS.map((opt) => {
                   const isChecked = opt.startsWith("None")
-                    ? (!formData.pre_existing_diseases || formData.pre_existing_diseases.length === 0)
+                    ? !formData.pre_existing_diseases ||
+                      formData.pre_existing_diseases.length === 0
                     : (formData.pre_existing_diseases || []).includes(opt);
                   return (
                     <div
@@ -488,7 +543,9 @@ export const ProfileView = ({ onComplete }) => {
                         cursor: "pointer",
                         borderRadius: "var(--radius-sm)",
                         fontSize: "0.83rem",
-                        background: isChecked ? "rgba(16, 185, 129, 0.15)" : "transparent",
+                        background: isChecked
+                          ? "rgba(16, 185, 129, 0.15)"
+                          : "transparent",
                         color: isChecked ? "#34d399" : "var(--text-main)",
                         marginBottom: "2px",
                       }}
@@ -532,7 +589,8 @@ export const ProfileView = ({ onComplete }) => {
             >
               <Info size={16} /> Coverage Type Summary & Disclaimer
             </div>
-            {formData.coverage_type && COVERAGE_DESCRIPTIONS[formData.coverage_type] ? (
+            {formData.coverage_type &&
+            COVERAGE_DESCRIPTIONS[formData.coverage_type] ? (
               <div>
                 <div
                   style={{
@@ -565,7 +623,8 @@ export const ProfileView = ({ onComplete }) => {
                   fontStyle: "italic",
                 }}
               >
-                Select a Coverage Type above to view detailed coverage information and policy guidelines.
+                Select a Coverage Type above to view detailed coverage
+                information and policy guidelines.
               </p>
             )}
           </div>
@@ -588,4 +647,3 @@ export const ProfileView = ({ onComplete }) => {
     </div>
   );
 };
-

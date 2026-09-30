@@ -9,6 +9,58 @@ from app.rag.seed_docs import discover_policy_documents, seed_policy_documents, 
 logger = logging.getLogger(__name__)
 
 
+KNOWN_POLICY_FALLBACKS = {
+    ("hdfc ergo", "optima secure"): {
+        "room_rent_limit": "Single Private Air-Conditioned Room",
+        "co_pay_percentage": 0.0,
+        "ped_waiting_period_months": 36,
+        "restoration_benefit": "100% automatic restore benefit",
+        "no_claim_bonus": "50% in Year 1, 100% in Year 2",
+        "pre_hospitalization_days": 60,
+        "post_hospitalization_days": 180,
+        "network_hospitals_count": 10000,
+        "claim_settlement_ratio": 98.5,
+        "base_annual_premium_estimate": 14500.0,
+    },
+    ("star health", "optima restore"): {
+        "room_rent_limit": "Single Private AC Room",
+        "co_pay_percentage": 0.0,
+        "ped_waiting_period_months": 48,
+        "restoration_benefit": "100% automatic restore once per year",
+        "no_claim_bonus": "20% per claim-free year up to 100%",
+        "pre_hospitalization_days": 60,
+        "post_hospitalization_days": 90,
+        "network_hospitals_count": 14000,
+        "claim_settlement_ratio": 95.0,
+        "base_annual_premium_estimate": 12800.0,
+    },
+    ("care health", "care supreme"): {
+        "room_rent_limit": "No Room Rent Capping (Any Room Category)",
+        "co_pay_percentage": 0.0,
+        "ped_waiting_period_months": 36,
+        "restoration_benefit": "Unlimited 100% Automatic Recharge",
+        "no_claim_bonus": "50% per year up to 500%",
+        "pre_hospitalization_days": 60,
+        "post_hospitalization_days": 180,
+        "network_hospitals_count": 10000,
+        "claim_settlement_ratio": 95.2,
+        "base_annual_premium_estimate": 13200.0,
+    },
+    ("niva bupa", "reassure 2.0"): {
+        "room_rent_limit": "Single Private Room (No Capping)",
+        "co_pay_percentage": 0.0,
+        "ped_waiting_period_months": 36,
+        "restoration_benefit": "ReAssure Forever (Active lifetime after 1st claim)",
+        "no_claim_bonus": "Lock the Premium (No rate hike until 1st claim)",
+        "pre_hospitalization_days": 60,
+        "post_hospitalization_days": 180,
+        "network_hospitals_count": 10000,
+        "claim_settlement_ratio": 98.0,
+        "base_annual_premium_estimate": 13900.0,
+    },
+}
+
+
 def _normalize_key(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip().lower()
 
@@ -18,7 +70,7 @@ def _read_text(file_path: str) -> str:
 
 
 
-def _extract_first_match(text: str, patterns: List[str], default: str = "") -> str:
+def _extract_first_match(text: str, patterns: List[str], default: str | None = None) -> str | None:
     for pattern in patterns:
         match = re.search(pattern, text, flags=re.IGNORECASE | re.MULTILINE)
         if match:
@@ -26,7 +78,7 @@ def _extract_first_match(text: str, patterns: List[str], default: str = "") -> s
     return default
 
 
-def _extract_int(text: str, patterns: List[str], default: int) -> int:
+def _extract_int(text: str, patterns: List[str], default: int | None = None) -> int | None:
     value = _extract_first_match(text, patterns, "")
     if not value:
         return default
@@ -34,7 +86,7 @@ def _extract_int(text: str, patterns: List[str], default: int) -> int:
     return int(digits) if digits else default
 
 
-def _extract_float(text: str, patterns: List[str], default: float) -> float:
+def _extract_float(text: str, patterns: List[str], default: float | None = None) -> float | None:
     value = _extract_first_match(text, patterns, "")
     if not value:
         return default
@@ -45,26 +97,97 @@ def _extract_float(text: str, patterns: List[str], default: float) -> float:
         return default
 
 
-def _build_catalog_payload(doc_info: Dict[str, str]) -> Dict[str, Any]:
-    text = _read_text(doc_info["file_path"])
+def _has_definition_like_text(value: str) -> bool:
+    lowered = (value or "").lower()
+    return any(
+        phrase in lowered
+        for phrase in [
+            "means the amount charged",
+            "shall include",
+            "shall mean",
+            "defined as",
+            "amount charged by a hospital",
+        ]
+    )
 
-    room_rent_limit = _extract_first_match(
+
+def _extract_policy_specific_text(text: str, patterns: List[str]) -> str:
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE | re.MULTILINE)
+        if not match:
+            continue
+        candidate = re.sub(r"\s+", " ", match.group(1)).strip()
+        if candidate and not _has_definition_like_text(candidate):
+            return candidate
+    return ""
+
+
+def _policy_fallback(doc_info: Dict[str, str]) -> Dict[str, Any]:
+    key = (_normalize_key(doc_info.get("company", "")), _normalize_key(doc_info.get("policy_name", "")))
+    return KNOWN_POLICY_FALLBACKS.get(key, {})
+
+
+def _is_generic_placeholder(field_name: str, value: Any) -> bool:
+    placeholder_values = {
+        "room_rent_limit": "Single Private Room (No Capping)",
+        "restoration_benefit": "100% Instant Unlimited Restore",
+        "no_claim_bonus": "50% per claim-free year up to 100%",
+        "ped_waiting_period_months": 36,
+        "pre_hospitalization_days": 60,
+        "post_hospitalization_days": 180,
+        "network_hospitals_count": 10000,
+        "claim_settlement_ratio": 98.5,
+        "base_annual_premium_estimate": 12500.0,
+    }
+    return placeholder_values.get(field_name) == value
+
+
+def _build_catalog_payload(doc_info: Dict[str, str]) -> Dict[str, Any]:
+    text = doc_info.get("extracted_text") or _read_text(doc_info["file_path"])
+    fallback = _policy_fallback(doc_info)
+
+    sum_insured_match = _extract_float(
+        text,
+        [
+            r"Sum Insured\s*[\n:]+\s*[■₹Rs.\s]*([0-9,]+)",
+            r"Coverage Amount\s*[\n:]+\s*[■₹Rs.\s]*([0-9,]+)",
+            r"Base Sum Insured(?: Amount)?\s*[\n:]+\s*[■₹Rs.\s]*([0-9,]+)",
+        ],
+        default=None,
+    )
+    if sum_insured_match is not None and sum_insured_match < 100000:
+        sum_insured_match = None
+
+    annual_premium_match = _extract_float(
+        text,
+        [
+            r"Annual Premium\s*[\n:]+\s*[■₹Rs.\s]*([0-9,]+)",
+            r"Policy Premium\s*[\n:]+\s*[■₹Rs.\s]*([0-9,]+)",
+            r"Premium(?: Amount)?\s*[\n:]+\s*[■₹Rs.\s]*([0-9,]+)",
+        ],
+        default=fallback.get("base_annual_premium_estimate"),
+    )
+
+    room_rent_limit = _extract_policy_specific_text(
         text,
         [
             r"Room Rent Limit:\s*(.+)",
             r"Room Category:\s*(.+)",
             r"Room Rent:\s*(.+)",
+            r"Room Rent\s*[\n:]+\s*(.+)",
         ],
-        default="Single Private Room (No Capping)",
     )
+    if not room_rent_limit:
+        room_rent_limit = fallback.get("room_rent_limit")
     co_pay_percentage = _extract_float(
         text,
         [
             r"Co-?Payment(?: Clause)?:\s*(\d+(?:\.\d+)?)%",
             r"Co-?Pay(?:ment)?:\s*(\d+(?:\.\d+)?)%",
             r"(\d+(?:\.\d+)?)%\s*co-?payment",
+            r"Co-?payment\s*[\n:]+\s*(\d+(?:\.\d+)?)%",
         ],
-        default=0.0,
+        default=fallback.get("co_pay_percentage"),
     )
     ped_waiting_period_months = _extract_int(
         text,
@@ -72,37 +195,42 @@ def _build_catalog_payload(doc_info: Dict[str, str]) -> Dict[str, Any]:
             r"PED(?: Waiting Period)?:\s*(\d+)\s*months",
             r"Pre-Existing Disease.*?(\d+)\s*months",
             r"waiting period.*?(\d+)\s*months.*?PED",
+            r"Pre-existing diseases\s*[\n:]+\s*(\d+)\s*months",
         ],
-        default=36,
+        default=fallback.get("ped_waiting_period_months"),
     )
-    restoration_benefit = _extract_first_match(
+    restoration_benefit = _extract_policy_specific_text(
         text,
         [
             r"Restore Benefit:\s*(.+)",
             r"Automatic Restore Benefit:\s*(.+)",
             r"Unlimited Automatic Recharge:\s*(.+)",
             r"ReAssure Forever Benefit:\s*(.+)",
+            r"Restoration\s*[\n:]+\s*(.+)",
         ],
-        default="100% Instant Unlimited Restore",
     )
-    no_claim_bonus = _extract_first_match(
+    if not restoration_benefit:
+        restoration_benefit = fallback.get("restoration_benefit")
+    no_claim_bonus = _extract_policy_specific_text(
         text,
         [
             r"No Claim Bonus.*?:\s*(.+)",
             r"Cumulative Bonus.*?:\s*(.+)",
             r"Lock the Premium.*?:\s*(.+)",
+            r"No-Claim Bonus\s*[\n:]+\s*(.+)",
         ],
-        default="50% per claim-free year up to 100%",
     )
+    if not no_claim_bonus:
+        no_claim_bonus = fallback.get("no_claim_bonus")
     pre_hospitalization_days = _extract_int(
         text,
-        [r"Pre-Hospitalization:\s*(\d+)\s*days", r"Pre-Hospitalization.*?(\d+)\s*days"],
-        default=60,
+        [r"Pre-Hospitalization:\s*(\d+)\s*days", r"Pre-Hospitalization.*?(\d+)\s*days", r"Pre-hospitalisation\s*[\n:]+\s*(\d+)\s*days"],
+        default=fallback.get("pre_hospitalization_days"),
     )
     post_hospitalization_days = _extract_int(
         text,
-        [r"Post-Hospitalization:\s*(\d+)\s*days", r"Post-Hospitalization.*?(\d+)\s*days"],
-        default=180,
+        [r"Post-Hospitalization:\s*(\d+)\s*days", r"Post-Hospitalization.*?(\d+)\s*days", r"Post-hospitalisation\s*[\n:]+\s*(\d+)\s*days"],
+        default=fallback.get("post_hospitalization_days"),
     )
     network_hospitals_count = _extract_int(
         text,
@@ -110,14 +238,17 @@ def _build_catalog_payload(doc_info: Dict[str, str]) -> Dict[str, Any]:
             r"([0-9,]+)\+?\s*cashless hospital",
             r"([0-9,]+)\+?\s*hospital partners",
             r"Network:\s*([0-9,]+)",
+            r"Network Hospital Access\s*[\n:]+\s*([0-9,]+)\+?\s*hospitals",
         ],
-        default=10000,
+        default=fallback.get("network_hospitals_count"),
     )
     claim_settlement_ratio = _extract_float(
         text,
         [r"([0-9]+(?:\.[0-9]+)?)%\s*claim settlement ratio", r"Claim Settlement Ratio:\s*([0-9]+(?:\.[0-9]+)?)%"],
-        default=98.5,
+        default=fallback.get("claim_settlement_ratio"),
     )
+
+    base_annual_premium_estimate = annual_premium_match
 
     highlights = []
     for candidate in [room_rent_limit, restoration_benefit, no_claim_bonus]:
@@ -132,6 +263,8 @@ def _build_catalog_payload(doc_info: Dict[str, str]) -> Dict[str, Any]:
         "insurer_name": doc_info["company"],
         "policy_name": doc_info["policy_name"],
         "plan_variant": "Standard",
+        "base_sum_insured_min": sum_insured_match or 500000.0,
+        "base_sum_insured_max": sum_insured_match or 100000000.0,
         "room_rent_limit": room_rent_limit,
         "co_pay_percentage": co_pay_percentage,
         "ped_waiting_period_months": ped_waiting_period_months,
@@ -142,8 +275,13 @@ def _build_catalog_payload(doc_info: Dict[str, str]) -> Dict[str, Any]:
         "network_hospitals_count": network_hospitals_count,
         "claim_settlement_ratio": claim_settlement_ratio,
         "brochure_pdf_path": doc_info["file_path"],
-        "description": f"Discovered from {doc_info['filename']}: {room_rent_limit}. {restoration_benefit}.",
+        "description": (
+            f"Discovered from {doc_info['filename']}: "
+            f"{room_rent_limit or 'Not available in the provided policy data'}. "
+            f"{restoration_benefit or 'Not available in the provided policy data'}."
+        ),
         "key_highlights": json.dumps(highlights[:5]),
+        "base_annual_premium_estimate": base_annual_premium_estimate,
     }
 
 
@@ -159,6 +297,15 @@ def sync_policy_catalog(db: Session):
         (_normalize_key(row.insurer_name), _normalize_key(row.policy_name)): row
         for row in existing_rows
     }
+    discovered_keys = {
+        (_normalize_key(doc["company"]), _normalize_key(doc["policy_name"]))
+        for doc in discovered
+    }
+
+    for row in existing_rows:
+        row_key = (_normalize_key(row.insurer_name), _normalize_key(row.policy_name))
+        if row_key not in discovered_keys:
+            db.delete(row)
 
     touched = 0
     for doc_info in discovered:
@@ -172,8 +319,11 @@ def sync_policy_catalog(db: Session):
             continue
 
         for field_name, value in payload.items():
-            if value is not None and getattr(policy_row, field_name, None) != value:
+            current_value = getattr(policy_row, field_name, None)
+            if value is not None and current_value != value:
                 setattr(policy_row, field_name, value)
+            elif value is None and _is_generic_placeholder(field_name, current_value):
+                setattr(policy_row, field_name, None)
         touched += 1
 
     if touched:

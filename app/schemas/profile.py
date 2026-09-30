@@ -26,3 +26,4 @@ class ProfileOut(ProfileBase):
 
     id: int
     user_id: int
+    active_profile_session_id: Optional[int] = None

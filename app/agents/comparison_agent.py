@@ -6,6 +6,12 @@ from app.agents.state import AgentState
 logger = logging.getLogger(__name__)
 
 
+def _display_comparison_value(value: Any) -> str:
+    if value is None or value == "":
+        return "Not available in the provided policy data."
+    return str(value)
+
+
 def _extract_recommended_policy_names(messages: List[Dict[str, Any]], valid_keys: List[str]) -> List[str]:
     """Extract policy keys from the latest assistant recommendation text."""
     last_assistant = None
@@ -31,7 +37,7 @@ def _extract_recommended_policy_names(messages: List[Dict[str, Any]], valid_keys
             selected.append(key)
 
     if selected:
-        return selected[:4]
+        return selected
 
     # Fallback: extract "Insurer - Policy" lines from markdown recommendation lists.
     pattern = re.compile(r"\d+\.\s*([A-Za-z0-9 .&]+)\s*-\s*([A-Za-z0-9 .&]+)", re.IGNORECASE)
@@ -40,7 +46,7 @@ def _extract_recommended_policy_names(messages: List[Dict[str, Any]], valid_keys
         for key in valid_keys:
             if candidate.lower() == key.lower() and key not in selected:
                 selected.append(key)
-    return selected[:4]
+    return selected
 
 # Benchmark Policy Database for structured comparison
 COMPARISON_BENCHMARKS = {
@@ -110,20 +116,111 @@ def _build_dynamic_comparison_benchmarks(policy_catalog: List[Dict[str, Any]]) -
         benchmarks[key] = {
             "insurer": policy.get("insurer_name", "Unknown"),
             "policy_name": policy.get("policy_name", "Policy"),
-            "room_rent": policy.get("room_rent_limit", "N/A"),
-            "co_pay": f"{policy.get('co_pay_percentage', 0.0)}%",
-            "ped_waiting": f"{policy.get('ped_waiting_period_months', 36)} Months",
-            "restoration": policy.get("restoration_benefit", "N/A"),
-            "no_claim_bonus": policy.get("no_claim_bonus", "N/A"),
-            "pre_post_days": f"{policy.get('pre_hospitalization_days', 60)} Days / {policy.get('post_hospitalization_days', 180)} Days",
+            "room_rent": _display_comparison_value(policy.get("room_rent_limit")),
+            "co_pay": _display_comparison_value(f"{policy.get('co_pay_percentage')}%" if policy.get("co_pay_percentage") is not None else None),
+            "ped_waiting": _display_comparison_value(f"{policy.get('ped_waiting_period_months')} Months" if policy.get("ped_waiting_period_months") is not None else None),
+            "restoration": _display_comparison_value(policy.get("restoration_benefit")),
+            "no_claim_bonus": _display_comparison_value(policy.get("no_claim_bonus")),
+            "pre_post_days": _display_comparison_value(
+                f"{policy.get('pre_hospitalization_days')} Days / {policy.get('post_hospitalization_days')} Days"
+                if policy.get("pre_hospitalization_days") is not None and policy.get("post_hospitalization_days") is not None
+                else None
+            ),
             "daycare_robotic": "Covered" if policy.get("daycare_treatments_covered", True) else "Not Specified",
             "air_ambulance": "Covered" if policy.get("air_ambulance_cover", True) else "Not Specified",
-            "est_premium_30yr_10l": f"₹{float(policy.get('base_annual_premium_estimate') or 0):,.0f} / year",
-            "highlight": policy.get("description", "Dynamic policy discovered from sample policy files."),
+            "est_premium_30yr_10l": _display_comparison_value(
+                f"₹{float(policy.get('base_annual_premium_estimate')):,.0f} / year" if policy.get("base_annual_premium_estimate") is not None else None
+            ),
+            "highlight": _display_comparison_value(policy.get("description")),
             "claim_settlement_ratio": float(policy.get("claim_settlement_ratio") or 0.0),
             "network_hospitals_count": int(policy.get("network_hospitals_count") or 0),
         }
     return benchmarks
+
+
+def _build_uploaded_policy_benchmark(uploaded_policy_baseline: Dict[str, Any]) -> Dict[str, Any] | None:
+    if not uploaded_policy_baseline:
+        return None
+
+    extracted = uploaded_policy_baseline.get("extracted_summary") or {}
+    benefits = uploaded_policy_baseline.get("benefits") or extracted.get("benefits") or []
+    policy_label = uploaded_policy_baseline.get("policy_name") or uploaded_policy_baseline.get("source_file_name") or "Uploaded Policy"
+
+    pre_hosp = extracted.get("pre_hospitalization_days")
+    post_hosp = extracted.get("post_hospitalization_days")
+    co_pay = extracted.get("co_pay_percentage")
+    ped_waiting = extracted.get("ped_waiting_period_months")
+    claim_settlement = extracted.get("claim_settlement_ratio")
+    network_hospitals = extracted.get("network_hospitals_count")
+
+    if co_pay is not None and co_pay != "":
+        co_pay_display = f"{co_pay}%" if not str(co_pay).strip().endswith("%") else str(co_pay)
+    else:
+        co_pay_display = None
+
+    if ped_waiting is not None:
+        ped_display = f"{ped_waiting} Months"
+    else:
+        ped_display = None
+
+    if pre_hosp is not None and post_hosp is not None:
+        pre_post_display = f"{pre_hosp} Days / {post_hosp} Days"
+    else:
+        pre_post_display = None
+
+    if claim_settlement is not None and claim_settlement != "":
+        claim_settlement_value = float(claim_settlement)
+    else:
+        claim_settlement_value = 0.0
+
+    if network_hospitals is not None and network_hospitals != "":
+        network_hospitals_value = int(network_hospitals)
+    else:
+        network_hospitals_value = 0
+
+    return {
+        "insurer": "Your Uploaded Policy",
+        "policy_name": policy_label,
+        "room_rent": _display_comparison_value(extracted.get("room_rent_limit")),
+        "co_pay": _display_comparison_value(co_pay_display),
+        "ped_waiting": _display_comparison_value(ped_display),
+        "restoration": _display_comparison_value(extracted.get("restoration_benefit")),
+        "no_claim_bonus": _display_comparison_value(extracted.get("no_claim_bonus")),
+        "pre_post_days": _display_comparison_value(pre_post_display),
+        "daycare_robotic": _display_comparison_value("Covered" if extracted.get("daycare_treatments_covered") is True else ("Not Specified" if extracted.get("daycare_treatments_covered") is False else None)),
+        "air_ambulance": _display_comparison_value("Covered" if extracted.get("air_ambulance_cover") is True else ("Not Specified" if extracted.get("air_ambulance_cover") is False else None)),
+        "est_premium_30yr_10l": _display_comparison_value(
+            f"₹{float(uploaded_policy_baseline.get('uploaded_premium')):,.0f} / year"
+            if uploaded_policy_baseline.get("uploaded_premium") is not None
+            else None
+        ),
+        "highlight": _display_comparison_value(
+            "; ".join([str(item) for item in benefits[:3] if item]) if benefits else None
+        ),
+        "claim_settlement_ratio": claim_settlement_value,
+        "network_hospitals_count": network_hospitals_value,
+    }
+
+
+def _extract_selected_policy_keys_from_ids(
+    policy_catalog: List[Dict[str, Any]],
+    comparison_benchmarks: Dict[str, Dict[str, Any]],
+    selected_ids: List[int],
+) -> List[str]:
+    if not selected_ids:
+        return []
+
+    id_map = {str(policy.get("policy_id") or policy.get("id")): policy for policy in policy_catalog}
+    ordered_keys: List[str] = []
+    for raw_id in selected_ids:
+      
+        policy = id_map.get(str(raw_id))
+        if not policy:
+            continue
+        key = f"{policy.get('insurer_name', 'Unknown')} {policy.get('policy_name', 'Policy')}"
+        if key in comparison_benchmarks and key not in ordered_keys:
+            ordered_keys.append(key)
+    return ordered_keys
 
 
 def comparison_agent_node(state: AgentState) -> AgentState:
@@ -133,21 +230,34 @@ def comparison_agent_node(state: AgentState) -> AgentState:
     query = state.get("query", "").lower()
     messages = state.get("messages", []) or []
     policy_catalog = state.get("policy_catalog") or []
+    compare_policy_ids = state.get("compare_policy_ids") or []
+    uploaded_policy_baseline = state.get("uploaded_policy_baseline") or {}
     comparison_benchmarks = _build_dynamic_comparison_benchmarks(policy_catalog) if policy_catalog else COMPARISON_BENCHMARKS
+    uploaded_policy_benchmark = _build_uploaded_policy_benchmark(uploaded_policy_baseline)
+    uploaded_policy_key = None
+    if uploaded_policy_benchmark:
+        uploaded_policy_key = uploaded_policy_benchmark["policy_name"] or "Uploaded Policy"
+        comparison_benchmarks = {**comparison_benchmarks, uploaded_policy_key: uploaded_policy_benchmark}
     
     # Identify target policies from query or pick default top 3
     selected_keys = []
-    selected_from_history = _extract_recommended_policy_names(messages, list(comparison_benchmarks.keys()))
-    if len(selected_from_history) >= 2:
-        selected_keys = selected_from_history
 
-    for key in comparison_benchmarks:
-        policy_words = key.lower().split()
-        if any(w in query for w in policy_words if len(w) > 3):
-            if key not in selected_keys:
-                selected_keys.append(key)
+    selected_from_ids = _extract_selected_policy_keys_from_ids(policy_catalog, comparison_benchmarks, compare_policy_ids)
+    if selected_from_ids:
+        selected_keys = selected_from_ids
+    else:
+        selected_from_history = _extract_recommended_policy_names(messages, list(comparison_benchmarks.keys()))
+        if selected_from_history:
+            selected_keys = selected_from_history
 
-    if len(selected_keys) < 2:
+    if not selected_keys:
+        for key in comparison_benchmarks:
+            policy_words = key.lower().split()
+            if any(w in query for w in policy_words if len(w) > 3):
+                if key not in selected_keys:
+                    selected_keys.append(key)
+
+    if len(selected_keys) < 2 and not compare_policy_ids:
         if policy_catalog:
             ranked = sorted(
                 comparison_benchmarks.items(),
@@ -157,9 +267,22 @@ def comparison_agent_node(state: AgentState) -> AgentState:
                 ),
                 reverse=True,
             )
-            selected_keys = [key for key, _ in ranked[:3]]
+            selected_keys = [key for key, _ in ranked[:3] if key != uploaded_policy_key]
         else:
-            selected_keys = ["HDFC ERGO Optima Secure", "Care Health Supreme", "Star Health Optima Restore"]
+            selected_keys = ["HDFC ERGO Optima Secure", "Care Health Supreme"]
+
+    display_keys = list(selected_keys)
+    if uploaded_policy_key and uploaded_policy_key not in display_keys:
+        display_keys.append(uploaded_policy_key)
+
+    if len(display_keys) < 2:
+        state["final_response"] = (
+            "### 📊 Side-by-Side Policy Comparison Matrix\n\n"
+            "Please select at least one catalogue policy to compare against your uploaded policy."
+        )
+        state["comparison_table"] = None
+        state["agent_used"] = "ComparisonAgent (Selection Required)"
+        return state
 
     matrix = {}
     params = [
@@ -177,10 +300,10 @@ def comparison_agent_node(state: AgentState) -> AgentState:
     ]
 
     for label, field in params:
-        matrix[label] = {p_key: comparison_benchmarks[p_key][field] for p_key in selected_keys}
+        matrix[label] = {p_key: comparison_benchmarks[p_key][field] for p_key in display_keys}
 
     # Markdown Table Generation
-    headers = ["Feature / Parameter"] + selected_keys
+    headers = ["Feature / Parameter"] + display_keys
     table_lines = [
         "### 📊 Side-by-Side Policy Comparison Matrix",
         "",
@@ -189,29 +312,20 @@ def comparison_agent_node(state: AgentState) -> AgentState:
     ]
 
     for label, field in params:
-        row_vals = [comparison_benchmarks[p_key][field] for p_key in selected_keys]
+        row_vals = [_display_comparison_value(comparison_benchmarks[p_key][field]) for p_key in display_keys]
         table_lines.append(f"| **{label}** | " + " | ".join(row_vals) + " |")
 
     table_lines.extend([
         "",
-        "#### 💡 Expert Recommendation & Verdict:",
+        "#### 💡 Neutral Comparison Verdict:",
     ])
 
-    if policy_catalog and selected_keys:
-        top_policy = selected_keys[0]
-        second_policy = selected_keys[1] if len(selected_keys) > 1 else selected_keys[0]
-        third_policy = selected_keys[2] if len(selected_keys) > 2 else second_policy
-        table_lines.extend([
-            f"- **Best overall feature richness**: **{top_policy}** (Highest combined coverage, network, and premium balance).",
-            f"- **Best for value and affordability**: **{second_policy}** (Strong features relative to premium).",
-            f"- **Best network / fallback option**: **{third_policy}** (Broad cashless coverage and balanced benefits)."
-        ])
-    else:
-        table_lines.extend([
-            "- **Best overall feature richness**: **HDFC ERGO Optima Secure** (Provides instant 2x coverage & consumable protection).",
-            "- **Best for high bonus accumulation**: **Care Health Supreme** (Up to 500% cumulative bonus super).",
-            "- **Best for young buyers**: **Niva Bupa ReAssure 2.0** (Lock-the-premium guarantees constant pricing until first claim)."
-        ])
+    table_lines.extend([
+        "#### Factual Summary:",
+        "- The table above shows the structured differences available in the current policy catalogue.",
+        "- Any missing value should be treated as not available in the provided policy data.",
+        "- No unsupported expert winner is inferred here."
+    ])
 
     state["final_response"] = "\n".join(table_lines)
     state["comparison_table"] = matrix

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, profile, chat, policies, compare, claims, premium, recommendations, faqs
+from app.api.v1 import auth, profile, chat, policies, compare, claims, premium, recommendations, faqs, documents
 
 api_v1_router = APIRouter()
 
@@ -12,3 +12,4 @@ api_v1_router.include_router(claims.router)
 api_v1_router.include_router(premium.router)
 api_v1_router.include_router(recommendations.router)
 api_v1_router.include_router(faqs.router)
+api_v1_router.include_router(documents.router)

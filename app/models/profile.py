@@ -31,3 +31,14 @@ class Profile(Base):
 
     # Relationships
     user = relationship("User", back_populates="profile")
+
+
+class ProfileSnapshot(Base):
+    __tablename__ = "profile_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    profile_data = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User")

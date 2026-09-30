@@ -1,8 +1,39 @@
 import logging
+import re
 from typing import List
+from app.database import SessionLocal
+from app.models.policy import PolicyCatalog
 from app.schemas.recommendation import PremiumEstimateRequest, PremiumEstimateResponse, PremiumBreakdownItem
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_key(value: str | None) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (value or "").lower()).strip()
+
+
+def _find_policy(req: PremiumEstimateRequest):
+    db = SessionLocal()
+    try:
+        query = db.query(PolicyCatalog)
+        if req.policy_id is not None:
+            policy = query.filter(PolicyCatalog.id == req.policy_id).first()
+            if policy:
+                return policy
+
+        candidate = _normalize_key(req.policy_name)
+        if not candidate:
+            return None
+
+        for policy in query.all():
+            insurer = _normalize_key(policy.insurer_name)
+            policy_name = _normalize_key(policy.policy_name)
+            combined = _normalize_key(f"{policy.insurer_name} {policy.policy_name}")
+            if candidate in {insurer, policy_name, combined}:
+                return policy
+        return None
+    finally:
+        db.close()
 
 
 def calculate_actuarial_premium(req: PremiumEstimateRequest) -> PremiumEstimateResponse:
@@ -11,10 +42,18 @@ def calculate_actuarial_premium(req: PremiumEstimateRequest) -> PremiumEstimateR
     floater multiplier, PED risk factor, optional riders, and 18% GST.
     """
     breakdown: List[PremiumBreakdownItem] = []
+    selected_policy = _find_policy(req)
+    policy_label = (
+        f"{selected_policy.insurer_name} - {selected_policy.policy_name}"
+        if selected_policy
+        else "Estimated Standard Health Policy"
+    )
 
     # 1. Base Premium by Sum Insured Tier
     si = req.sum_insured
-    if si <= 500000:
+    if selected_policy and selected_policy.base_annual_premium_estimate is not None:
+        base_rate = float(selected_policy.base_annual_premium_estimate)
+    elif si <= 500000:
         base_rate = 8500.0
     elif si <= 1000000:
         base_rate = 12500.0
@@ -24,9 +63,13 @@ def calculate_actuarial_premium(req: PremiumEstimateRequest) -> PremiumEstimateR
         base_rate = 28000.0 # 1 Cr+
 
     breakdown.append(PremiumBreakdownItem(
-        name="Base Premium (Tier 1 City)",
+        name="Base Premium (Selected Policy Rate)" if selected_policy else "Base Premium (Tier 1 City)",
         amount=base_rate,
-        description=f"Base annual rate for ₹{si:,.0f} Sum Insured."
+        description=(
+            f"Catalog base annual premium for {policy_label}."
+            if selected_policy
+            else f"Base annual rate for ₹{si:,.0f} Sum Insured."
+        )
     ))
     accumulated_premium = base_rate
 
@@ -116,5 +159,5 @@ def calculate_actuarial_premium(req: PremiumEstimateRequest) -> PremiumEstimateR
         gst_18_percent=gst,
         monthly_installment=monthly_inst,
         breakdown=breakdown,
-        policy_name=f"Comprehensive Health Policy ({req.coverage_type})"
+        policy_name=policy_label
     )

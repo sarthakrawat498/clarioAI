@@ -12,6 +12,15 @@ export const AuthProvider = ({ children }) => {
     localStorage.getItem("needs_profile_onboarding") === "true",
   );
 
+  // Listen for 401 events from Axios response interceptor
+  useEffect(() => {
+    const handleAuth401 = () => {
+      logout();
+    };
+    window.addEventListener("auth-401-error", handleAuth401);
+    return () => window.removeEventListener("auth-401-error", handleAuth401);
+  }, []);
+
   useEffect(() => {
     const initAuth = async () => {
       if (token) {

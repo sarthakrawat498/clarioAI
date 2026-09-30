@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.database import init_db, SessionLocal
+import app.models  # noqa: F401
 from app.api.v1.router import api_v1_router
 from app.services.policy_service import seed_policy_catalog
 from app.rag.vector_store import vector_store_manager
@@ -51,13 +52,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS
+# Configure CORS with specific origins from settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Mount API V1 Router

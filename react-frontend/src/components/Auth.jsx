@@ -30,7 +30,18 @@ export const Auth = () => {
       }
     } catch (err) {
       console.error('Auth error:', err);
-      const detail = err.response?.data?.detail || err.message || 'Authentication failed. Please check credentials.';
+      
+      // Better error message detection
+      let detail = 'Authentication failed. Please check credentials.';
+      
+      if (err.response?.data?.detail) {
+        detail = err.response.data.detail;
+      } else if (err.message === 'Network Error' || err.code === 'ERR_NETWORK') {
+        detail = 'Network error: Cannot reach the server. Is the backend running at http://127.0.0.1:8001?';
+      } else if (err.message) {
+        detail = err.message;
+      }
+      
       setError(detail);
     } finally {
       setSubmitting(false);
@@ -38,7 +49,7 @@ export const Auth = () => {
   };
 
   const fillDemoUser = async () => {
-    setEmail('demo@clarioai.com');
+    setEmail('demo@clario.ai');
     setPassword('demo123456');
     setError('');
   };

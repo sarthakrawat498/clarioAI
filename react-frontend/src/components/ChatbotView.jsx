@@ -23,7 +23,7 @@ const QUICK_PROMPTS = [
   { text: "🧮 Calculate premium for 35yo in Tier 1 city", query: "Can you calculate my annual estimated premium for age 35, Tier 1 city with Family Floater?" },
   { text: "🩺 Check claim eligibility", query: "Am I eligible to claim ₹2,00,000 for a surgery hospital stay after 2 years of policy?" },
   { text: "💡 Recommend best policy for diabetes", query: "Which health policy is best for someone with pre-existing diabetes and 2 family members?" },
-  { text: "⚖️ Compare Star Comprehensive vs HDFC Optima", query: "Compare Star Health Comprehensive vs HDFC ERGO Optima Secure side by side." },
+  { text: "⚖️ Compare recommended policies", query: "Compare the first two recommended policies side by side." },
   { text: "📜 What is pre-existing disease waiting period?", query: "What is the standard pre-existing disease (PED) waiting period across policies?" },
 ];
 
@@ -289,13 +289,17 @@ export const ChatbotView = ({ onNavigate }) => {
       fetchSessions();
     } catch (err) {
       console.error('Chat error:', err);
+      const detail = err.response?.data?.detail;
+      const errorMessage = !err.response
+        ? `Unable to reach backend server at ${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8001/api/v1'}.`
+        : `Chat request failed (${err.response.status}): ${detail || err.message}`;
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
           sender: 'assistant',
           agent_name: 'Error',
-          content: 'Unable to reach backend server. Please verify FastAPI service is running.',
+          content: errorMessage,
         }
       ]);
     } finally {

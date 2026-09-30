@@ -10,8 +10,9 @@ from app.models.user import User
 from app.models.chat import ChatSession, ChatMessage
 from app.schemas.chat import ChatQueryRequest, ChatQueryResponse, ChatSessionOut, UpdateSessionTitleRequest
 from app.agents.graph import run_agent_workflow
-from app.services.profile_service import get_user_profile
+from app.services.profile_service import get_user_profile, get_latest_profile_snapshot, get_profile_snapshot_by_id
 from app.services.policy_service import get_all_policies, serialize_policy_catalog
+from app.services.uploaded_policy_service import get_latest_uploaded_policy_snapshot, build_uploaded_policy_context
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["AI Chat & Multi-Agent Assistant"])
@@ -41,24 +42,42 @@ def handle_chat_query(
 
     # 2. Get User Profile dict
     profile_obj = get_user_profile(db, current_user.id)
-    peds = profile_obj.pre_existing_diseases
-    if isinstance(peds, str):
+    if req.profile_session_id is not None:
+        profile_snapshot = get_profile_snapshot_by_id(db, current_user.id, req.profile_session_id)
+        if not profile_snapshot:
+            raise HTTPException(status_code=404, detail="Profile session not found")
+    else:
+        profile_snapshot = get_latest_profile_snapshot(db, current_user.id)
+
+    if profile_snapshot:
         try:
-            peds = json.loads(peds)
+            user_profile_dict = json.loads(profile_snapshot.profile_data)
         except Exception:
-            peds = [peds] if peds else []
-            
-    user_profile_dict = {
-        "age": profile_obj.age,
-        "city_tier": profile_obj.city_tier,
-        "pre_existing_diseases": peds,
-        "tobacco_user": profile_obj.tobacco_user,
-        "coverage_type": profile_obj.coverage_type,
-        "family_members_count": profile_obj.family_members_count,
-        "sum_insured_preference": profile_obj.sum_insured_preference,
-        "budget_annual_max": profile_obj.budget_annual_max
-    }
+            user_profile_dict = {}
+    else:
+        peds = profile_obj.pre_existing_diseases
+        if isinstance(peds, str):
+            try:
+                peds = json.loads(peds)
+            except Exception:
+                peds = [peds] if peds else []
+
+        user_profile_dict = {
+            "age": profile_obj.age,
+            "gender": profile_obj.gender,
+            "city": profile_obj.city,
+            "city_tier": profile_obj.city_tier,
+            "pre_existing_diseases": peds,
+            "tobacco_user": profile_obj.tobacco_user,
+            "coverage_type": profile_obj.coverage_type,
+            "family_members_count": profile_obj.family_members_count,
+            "sum_insured_preference": profile_obj.sum_insured_preference,
+            "budget_annual_max": profile_obj.budget_annual_max,
+            "preferred_room_type": profile_obj.preferred_room_type,
+        }
     policy_catalog = serialize_policy_catalog(get_all_policies(db))
+    latest_snapshot = get_latest_uploaded_policy_snapshot(db, current_user.id, session_id)
+    uploaded_policy_baseline = build_uploaded_policy_context(latest_snapshot, user_profile_dict) if latest_snapshot else None
 
     # 3. Save User Message to DB
     user_msg = ChatMessage(
@@ -87,8 +106,11 @@ def handle_chat_query(
         messages=conversation_messages,
         user_profile=user_profile_dict,
         policy_catalog=policy_catalog,
+        uploaded_policy_baseline=uploaded_policy_baseline,
         filter_company=req.filter_company,
-        filter_policy=req.filter_policy
+        filter_policy=req.filter_policy,
+        claim_amount=req.claim_amount,
+        compare_policy_ids=req.compare_policy_ids,
     )
 
     response_text = agent_output.get("final_response", "Thank you for your question.")

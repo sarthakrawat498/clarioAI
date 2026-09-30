@@ -5,6 +5,7 @@ from app.models.profile import Profile
 from app.schemas.auth import UserCreate
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.core.exceptions import UserAlreadyExistsException, InvalidCredentialsException
+from app.services.profile_service import snapshot_profile
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def register_user(db: Session, user_in: UserCreate) -> User:
     # Initialize empty profile for new user
     default_profile = Profile(
         user_id=user.id,
-        age=None,
+        age=30,
         gender=None,
         city=None,
         city_tier=None,
@@ -40,6 +41,10 @@ def register_user(db: Session, user_in: UserCreate) -> User:
         tobacco_user=False
     )
     db.add(default_profile)
+    db.commit()
+    db.refresh(default_profile)
+
+    snapshot_profile(db, user.id, default_profile)
     db.commit()
 
     logger.info(f"Successfully registered new user: {user.email}")

@@ -1,30 +1,30 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { chatAPI, profileAPI, policyAPI, faqAPI } from '../api';
-import { 
-  Bot, 
-  Send, 
-  Sparkles, 
-  History, 
-  UserCheck, 
-  BookOpen, 
-  HelpCircle, 
-  LogOut, 
-  Plus, 
-  X, 
-  CheckCircle2, 
-  Award, 
-  Search, 
-  Save, 
-  Book, 
-  ChevronDown, 
+import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "../context/AuthContext";
+import { chatAPI, profileAPI, policyAPI, faqAPI, uploadAPI } from "../api";
+import {
+  Bot,
+  Send,
+  Sparkles,
+  History,
+  UserCheck,
+  BookOpen,
+  HelpCircle,
+  LogOut,
+  Plus,
+  X,
+  CheckCircle2,
+  Award,
+  Search,
+  Save,
+  Book,
+  ChevronDown,
   ChevronUp,
   Shield,
   Info,
   Trash2,
   Pencil,
-  Check
-} from 'lucide-react';
+  Check,
+} from "lucide-react";
 
 const PED_OPTIONS = [
   "None / No Pre-Existing Conditions",
@@ -41,7 +41,7 @@ const PED_OPTIONS = [
 ];
 
 const COVERAGE_DESCRIPTIONS = {
-  "Individual": {
+  Individual: {
     title: "Individual Health Plan",
     icon: "👤",
     description:
@@ -102,16 +102,35 @@ const getINRHelperText = (value) => {
   return `₹${num.toLocaleString("en-IN")}`;
 };
 
-
 const QUICK_PROMPTS = [
-  { text: "💡 Recommend best policy", query: "Can you recommend the top health insurance policy based on my health profile and budget?" },
-  { text: "🧮 Calculate annual premium", query: "Can you estimate my annual health insurance premium?" },
-  { text: "🩺 Check claim eligibility", query: "Am I eligible to claim ₹2,00,000 for a surgery hospital stay after 2 years of policy?" },
-  { text: "⚖️ Compare Star vs HDFC", query: "Compare Star Health Comprehensive vs HDFC ERGO Optima Secure side by side." },
-  { text: "📜 What is PED waiting period?", query: "What is the standard pre-existing disease (PED) waiting period across policies?" },
-  { text: "📊 Show policy catalogue", query: "What health insurance policies are available in the catalogue?" },
+  {
+    text: "💡 Recommend best policy",
+    query:
+      "Can you recommend the top health insurance policy based on my health profile and budget?",
+  },
+  {
+    text: "🧮 Calculate annual premium",
+    query: "Can you estimate my annual health insurance premium?",
+  },
+  {
+    text: "🩺 Check claim eligibility",
+    query:
+      "Can you check my claim eligibility for a surgery hospital stay after 2 years of policy?",
+  },
+  {
+    text: "⚖️ Compare policies",
+    query: "Compare the selected policies side by side.",
+  },
+  {
+    text: "📜 What is PED waiting period?",
+    query:
+      "What is the standard pre-existing disease (PED) waiting period across policies?",
+  },
+  {
+    text: "📊 Show policy catalogue",
+    query: "What health insurance policies are available in the catalogue?",
+  },
 ];
-
 
 const FormattedMessage = ({ content }) => {
   if (!content) return null;
@@ -119,16 +138,15 @@ const FormattedMessage = ({ content }) => {
   const parseBlocks = (text) => {
     // Strip trailing citations and inline bracket citations
     let cleanText = text
-      .replace(/📖 Policy Excerpt Citations:[\s\S]*$/gi, '')
-      .replace(/\[Company:.*?\]/gi, '')
-      .replace(/\[Policy:.*?\]/gi, '')
-      .replace(/\[Page:.*?\]/gi, '')
-      .replace(/\[[^\]]*?Page:\s*\d+[^\]]*?\]/gi, '')
-      .replace(/\[[^\]]*?Company:[^\]]*?\]/gi, '')
+      .replace(/📖 Policy Excerpt Citations:[\s\S]*$/gi, "")
+      .replace(/\[Company:.*?\]/gi, "")
+      .replace(/\[Policy:.*?\]/gi, "")
+      .replace(/\[Page:.*?\]/gi, "")
+      .replace(/\[[^\]]*?Page:\s*\d+[^\]]*?\]/gi, "")
+      .replace(/\[[^\]]*?Company:[^\]]*?\]/gi, "")
       .trim();
 
-
-    const lines = cleanText.split('\n');
+    const lines = cleanText.split("\n");
     const blocks = [];
     let tableRows = [];
     let inTable = false;
@@ -138,14 +156,39 @@ const FormattedMessage = ({ content }) => {
     const renderBold = (str) => {
       const parts = str.split(/(\*\*.*?\*\*|\*.*?\*|__.*?__|`.*?`)/g);
       return parts.map((part, i) => {
-        if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
-          return <strong key={i} style={{ color: '#f8fafc', fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+        if (
+          (part.startsWith("**") && part.endsWith("**")) ||
+          (part.startsWith("__") && part.endsWith("__"))
+        ) {
+          return (
+            <strong key={i} style={{ color: "#f8fafc", fontWeight: 700 }}>
+              {part.slice(2, -2)}
+            </strong>
+          );
         }
-        if (part.startsWith('*') && part.endsWith('*')) {
-          return <em key={i} style={{ color: '#e2e8f0' }}>{part.slice(1, -1)}</em>;
+        if (part.startsWith("*") && part.endsWith("*")) {
+          return (
+            <em key={i} style={{ color: "#e2e8f0" }}>
+              {part.slice(1, -1)}
+            </em>
+          );
         }
-        if (part.startsWith('`') && part.endsWith('`')) {
-          return <code key={i} style={{ background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontSize: '0.82em', fontFamily: 'monospace' }}>{part.slice(1, -1)}</code>;
+        if (part.startsWith("`") && part.endsWith("`")) {
+          return (
+            <code
+              key={i}
+              style={{
+                background: "rgba(56,189,248,0.15)",
+                color: "#38bdf8",
+                padding: "2px 6px",
+                borderRadius: "4px",
+                fontSize: "0.82em",
+                fontFamily: "monospace",
+              }}
+            >
+              {part.slice(1, -1)}
+            </code>
+          );
         }
         return part;
       });
@@ -154,13 +197,29 @@ const FormattedMessage = ({ content }) => {
     const flushList = () => {
       if (listItems.length > 0) {
         blocks.push(
-          <ul key={`ul-${blocks.length}`} style={{ margin: '8px 0 12px 18px', paddingLeft: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <ul
+            key={`ul-${blocks.length}`}
+            style={{
+              margin: "8px 0 12px 18px",
+              paddingLeft: "8px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+            }}
+          >
             {listItems.map((item, idx) => (
-              <li key={idx} style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.5' }}>
+              <li
+                key={idx}
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "0.92rem",
+                  lineHeight: "1.5",
+                }}
+              >
                 {renderBold(item)}
               </li>
             ))}
-          </ul>
+          </ul>,
         );
         listItems = [];
         inList = false;
@@ -170,15 +229,50 @@ const FormattedMessage = ({ content }) => {
     const flushTable = () => {
       if (tableRows.length > 0) {
         const headerRow = tableRows[0];
-        const bodyRows = tableRows.slice(1).filter(r => !r.every(cell => cell.trim().startsWith('---') || cell.trim() === ''));
+        const bodyRows = tableRows
+          .slice(1)
+          .filter(
+            (r) =>
+              !r.every(
+                (cell) => cell.trim().startsWith("---") || cell.trim() === "",
+              ),
+          );
 
         blocks.push(
-          <div key={`table-${blocks.length}`} style={{ overflowX: 'auto', margin: '14px 0', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left', background: 'rgba(15,23,42,0.6)' }}>
+          <div
+            key={`table-${blocks.length}`}
+            style={{
+              overflowX: "auto",
+              margin: "14px 0",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.12)",
+            }}
+          >
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: "0.85rem",
+                textAlign: "left",
+                background: "rgba(15,23,42,0.6)",
+              }}
+            >
               <thead>
-                <tr style={{ background: 'rgba(30,41,59,0.9)', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+                <tr
+                  style={{
+                    background: "rgba(30,41,59,0.9)",
+                    borderBottom: "1px solid rgba(255,255,255,0.15)",
+                  }}
+                >
                   {headerRow.map((cell, cIdx) => (
-                    <th key={cIdx} style={{ padding: '10px 14px', color: '#38bdf8', fontWeight: 700 }}>
+                    <th
+                      key={cIdx}
+                      style={{
+                        padding: "10px 14px",
+                        color: "#38bdf8",
+                        fontWeight: 700,
+                      }}
+                    >
                       {renderBold(cell.trim())}
                     </th>
                   ))}
@@ -186,9 +280,21 @@ const FormattedMessage = ({ content }) => {
               </thead>
               <tbody>
                 {bodyRows.map((r, rIdx) => (
-                  <tr key={rIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: rIdx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                  <tr
+                    key={rIdx}
+                    style={{
+                      borderBottom: "1px solid rgba(255,255,255,0.06)",
+                      background:
+                        rIdx % 2 === 0
+                          ? "transparent"
+                          : "rgba(255,255,255,0.02)",
+                    }}
+                  >
                     {r.map((cell, cIdx) => (
-                      <td key={cIdx} style={{ padding: '9px 14px', color: '#cbd5e1' }}>
+                      <td
+                        key={cIdx}
+                        style={{ padding: "9px 14px", color: "#cbd5e1" }}
+                      >
                         {renderBold(cell.trim())}
                       </td>
                     ))}
@@ -196,7 +302,7 @@ const FormattedMessage = ({ content }) => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </div>,
         );
         tableRows = [];
         inTable = false;
@@ -212,10 +318,10 @@ const FormattedMessage = ({ content }) => {
       }
 
       // Check for Table Row
-      if (line.startsWith('|') && line.endsWith('|')) {
+      if (line.startsWith("|") && line.endsWith("|")) {
         flushList();
         inTable = true;
-        const cells = line.split('|').slice(1, -1);
+        const cells = line.split("|").slice(1, -1);
         tableRows.push(cells);
         continue;
       } else if (inTable) {
@@ -223,9 +329,14 @@ const FormattedMessage = ({ content }) => {
       }
 
       // Check for List Item
-      if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ') || /^\d+\.\s/.test(line)) {
+      if (
+        line.startsWith("- ") ||
+        line.startsWith("* ") ||
+        line.startsWith("• ") ||
+        /^\d+\.\s/.test(line)
+      ) {
         inList = true;
-        const itemContent = line.replace(/^(-|\*|•|\d+\.)\s*/, '');
+        const itemContent = line.replace(/^(-|\*|•|\d+\.)\s*/, "");
         listItems.push(itemContent);
         continue;
       } else if (inList) {
@@ -233,25 +344,71 @@ const FormattedMessage = ({ content }) => {
       }
 
       // Check for Headers (#, ##, ###)
-      if (line.startsWith('#')) {
-        const headerText = line.replace(/^#+\s*/, '');
+      if (line.startsWith("#")) {
+        const headerText = line.replace(/^#+\s*/, "");
         const level = line.match(/^#+/)[0].length;
 
         if (level === 1) {
-          blocks.push(<h2 key={`h1-${blocks.length}`} style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', margin: '14px 0 8px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px' }}>{renderBold(headerText)}</h2>);
+          blocks.push(
+            <h2
+              key={`h1-${blocks.length}`}
+              style={{
+                fontSize: "1.2rem",
+                fontWeight: 800,
+                color: "#f8fafc",
+                margin: "14px 0 8px 0",
+                borderBottom: "1px solid rgba(255,255,255,0.1)",
+                paddingBottom: "6px",
+              }}
+            >
+              {renderBold(headerText)}
+            </h2>,
+          );
         } else if (level === 2) {
-          blocks.push(<h3 key={`h2-${blocks.length}`} style={{ fontSize: '1.08rem', fontWeight: 700, color: '#38bdf8', margin: '12px 0 6px 0' }}>{renderBold(headerText)}</h3>);
+          blocks.push(
+            <h3
+              key={`h2-${blocks.length}`}
+              style={{
+                fontSize: "1.08rem",
+                fontWeight: 700,
+                color: "#38bdf8",
+                margin: "12px 0 6px 0",
+              }}
+            >
+              {renderBold(headerText)}
+            </h3>,
+          );
         } else {
-          blocks.push(<h4 key={`h3-${blocks.length}`} style={{ fontSize: '0.96rem', fontWeight: 700, color: '#34d399', margin: '10px 0 4px 0' }}>{renderBold(headerText)}</h4>);
+          blocks.push(
+            <h4
+              key={`h3-${blocks.length}`}
+              style={{
+                fontSize: "0.96rem",
+                fontWeight: 700,
+                color: "#34d399",
+                margin: "10px 0 4px 0",
+              }}
+            >
+              {renderBold(headerText)}
+            </h4>,
+          );
         }
         continue;
       }
 
       // Normal Paragraph
       blocks.push(
-        <p key={`p-${blocks.length}`} style={{ margin: '6px 0 10px 0', lineHeight: '1.6', color: '#cbd5e1', fontSize: '0.92rem' }}>
+        <p
+          key={`p-${blocks.length}`}
+          style={{
+            margin: "6px 0 10px 0",
+            lineHeight: "1.6",
+            color: "#cbd5e1",
+            fontSize: "0.92rem",
+          }}
+        >
           {renderBold(line)}
-        </p>
+        </p>,
       );
     }
 
@@ -270,33 +427,37 @@ export const SinglePageChatbot = () => {
   // Chat State
   const [messages, setMessages] = useState([
     {
-      id: 'welcome',
-      sender: 'assistant',
-      agent_name: 'Clario AI Assistant',
-      content: `Hello ${user?.full_name || ''}! 👋 I am your AI Health Insurance Advisor. Powered by multi-agent RAG (Coverage Explainer, Sales Recommendation, Actuarial Premium & Claims Evaluator), how can I assist you today?`,
+      id: "welcome",
+      sender: "assistant",
+      agent_name: "Clario AI Assistant",
+      content: `Hello ${user?.full_name || ""}! 👋 I am your AI Health Insurance Advisor. Powered by multi-agent RAG (Coverage Explainer, Sales Recommendation, Actuarial Premium & Claims Evaluator), how can I assist you today?`,
       sources: [],
-    }
+    },
   ]);
-  const [inputQuery, setInputQuery] = useState('');
+  const [inputQuery, setInputQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [editingSessionId, setEditingSessionId] = useState(null);
-  const [editingTitle, setEditingTitle] = useState('');
+  const [editingTitle, setEditingTitle] = useState("");
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [uploadedPolicySummary, setUploadedPolicySummary] = useState(null);
+  const [uploadError, setUploadError] = useState("");
+  const uploadInputRef = useRef(null);
 
   // Active Drawer State ('none' | 'profile' | 'catalog' | 'faqs' | 'history')
-  const [activeDrawer, setActiveDrawer] = useState('none');
+  const [activeDrawer, setActiveDrawer] = useState("none");
 
   // Profile Form State
   const [profileForm, setProfileForm] = useState({
-    age: '',
-    gender: '',
-    city: '',
+    age: "",
+    gender: "",
+    city: "",
     pre_existing_diseases: [],
-    coverage_type: '',
-    family_members_count: '',
-    sum_insured_preference: '',
-    budget_annual_max: '',
+    coverage_type: "",
+    family_members_count: "",
+    sum_insured_preference: "",
+    budget_annual_max: "",
     tobacco_user: false,
   });
   const [savingProfile, setSavingProfile] = useState(false);
@@ -306,7 +467,11 @@ export const SinglePageChatbot = () => {
 
   // Catalog State
   const [policies, setPolicies] = useState([]);
-  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [policyActionMode, setPolicyActionMode] = useState("none");
+  const [selectedPolicyContext, setSelectedPolicyContext] = useState(null);
+  const [awaitingClaimAmount, setAwaitingClaimAmount] = useState(false);
+  const [selectedComparePolicyIds, setSelectedComparePolicyIds] = useState([]);
 
   // FAQs State
   const [faqs, setFaqs] = useState([]);
@@ -323,14 +488,31 @@ export const SinglePageChatbot = () => {
   useEffect(() => {
     if (userProfile) {
       setProfileForm({
-        age: userProfile.age !== null && userProfile.age !== undefined ? userProfile.age : '',
-        gender: userProfile.gender || '',
-        city: userProfile.city || '',
-        pre_existing_diseases: Array.isArray(userProfile.pre_existing_diseases) ? userProfile.pre_existing_diseases : [],
-        coverage_type: userProfile.coverage_type || '',
-        family_members_count: userProfile.family_members_count !== null && userProfile.family_members_count !== undefined ? userProfile.family_members_count : '',
-        sum_insured_preference: userProfile.sum_insured_preference !== null && userProfile.sum_insured_preference !== undefined ? userProfile.sum_insured_preference : '',
-        budget_annual_max: userProfile.budget_annual_max !== null && userProfile.budget_annual_max !== undefined ? userProfile.budget_annual_max : '',
+        age:
+          userProfile.age !== null && userProfile.age !== undefined
+            ? userProfile.age
+            : "",
+        gender: userProfile.gender || "",
+        city: userProfile.city || "",
+        pre_existing_diseases: Array.isArray(userProfile.pre_existing_diseases)
+          ? userProfile.pre_existing_diseases
+          : [],
+        coverage_type: userProfile.coverage_type || "",
+        family_members_count:
+          userProfile.family_members_count !== null &&
+          userProfile.family_members_count !== undefined
+            ? userProfile.family_members_count
+            : "",
+        sum_insured_preference:
+          userProfile.sum_insured_preference !== null &&
+          userProfile.sum_insured_preference !== undefined
+            ? userProfile.sum_insured_preference
+            : "",
+        budget_annual_max:
+          userProfile.budget_annual_max !== null &&
+          userProfile.budget_annual_max !== undefined
+            ? userProfile.budget_annual_max
+            : "",
         tobacco_user: !!userProfile.tobacco_user,
       });
     }
@@ -338,12 +520,15 @@ export const SinglePageChatbot = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (drawerPedRef.current && !drawerPedRef.current.contains(event.target)) {
+      if (
+        drawerPedRef.current &&
+        !drawerPedRef.current.contains(event.target)
+      ) {
         setDrawerPedOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleDrawerPedToggle = (opt) => {
@@ -355,7 +540,10 @@ export const SinglePageChatbot = () => {
       const current = prev.pre_existing_diseases || [];
       const filtered = current.filter((item) => !item.startsWith("None"));
       if (filtered.includes(opt)) {
-        return { ...prev, pre_existing_diseases: filtered.filter((d) => d !== opt) };
+        return {
+          ...prev,
+          pre_existing_diseases: filtered.filter((d) => d !== opt),
+        };
       } else {
         return { ...prev, pre_existing_diseases: [...filtered, opt] };
       }
@@ -366,15 +554,18 @@ export const SinglePageChatbot = () => {
     e.stopPropagation();
     setProfileForm((prev) => ({
       ...prev,
-      pre_existing_diseases: (prev.pre_existing_diseases || []).filter((t) => t !== tag),
+      pre_existing_diseases: (prev.pre_existing_diseases || []).filter(
+        (t) => t !== tag,
+      ),
     }));
   };
 
   const isDrawerFamilyCoverage =
-    profileForm.coverage_type === 'Family Floater' || profileForm.coverage_type === 'Family Plan';
+    profileForm.coverage_type === "Family Floater" ||
+    profileForm.coverage_type === "Family Plan";
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
   const fetchSessions = async () => {
@@ -382,7 +573,7 @@ export const SinglePageChatbot = () => {
       const data = await chatAPI.getSessions();
       setSessions(data || []);
     } catch (e) {
-      console.warn('Could not load chat sessions:', e);
+      console.warn("Could not load chat sessions:", e);
     }
   };
 
@@ -395,18 +586,21 @@ export const SinglePageChatbot = () => {
         startNewChat();
       }
     } catch (err) {
-      console.error('Delete session error:', err);
+      console.error("Delete session error:", err);
     }
   };
 
   const handleClearAllSessions = async () => {
-    if (!window.confirm('Are you sure you want to delete all past chat history?')) return;
+    if (
+      !window.confirm("Are you sure you want to delete all past chat history?")
+    )
+      return;
     try {
       await chatAPI.clearAllSessions();
       setSessions([]);
       startNewChat();
     } catch (err) {
-      console.error('Clear all sessions error:', err);
+      console.error("Clear all sessions error:", err);
     }
   };
 
@@ -425,23 +619,77 @@ export const SinglePageChatbot = () => {
     try {
       await chatAPI.updateSessionTitle(targetId, editingTitle.trim());
       setSessions((prev) =>
-        prev.map((s) => (s.id === targetId ? { ...s, session_title: editingTitle.trim() } : s))
+        prev.map((s) =>
+          s.id === targetId ? { ...s, session_title: editingTitle.trim() } : s,
+        ),
       );
     } catch (err) {
-      console.error('Update session title error:', err);
+      console.error("Update session title error:", err);
     } finally {
       setEditingSessionId(null);
     }
   };
 
+  const handleUploadButtonClick = () => {
+    uploadInputRef.current?.click();
+  };
 
+  const handlePolicyUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || uploadingDocument) return;
+
+    setUploadingDocument(true);
+    setUploadError("");
+
+    try {
+      const response = await uploadAPI.uploadPolicyDocument(file, sessionId);
+      const snapshot = response.snapshot || response;
+      if (response.session_id && !sessionId) {
+        setSessionId(response.session_id);
+      }
+      setUploadedPolicySummary(snapshot);
+
+      const extractedSummary = snapshot.extracted_summary || {};
+      const benefits = snapshot.benefits || extractedSummary.benefits || [];
+      const uploadedPolicyMessage = [
+        `I analyzed your uploaded policy document: ${snapshot.policy_name || file.name}.`,
+        benefits.length > 0
+          ? `Key benefits: ${benefits.slice(0, 4).join("; ")}.`
+          : "I captured the document for chat-based comparison only.",
+        "To compare it, select one or more policies from the catalogue and I’ll compare them with your uploaded policy.",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "upload-" + Date.now(),
+          sender: "assistant",
+          agent_name: "Policy Analyzer",
+          content: uploadedPolicyMessage,
+          sources: [],
+        },
+      ]);
+      fetchSessions();
+    } catch (err) {
+      console.error("Policy upload error:", err);
+      setUploadError(
+        err.response?.data?.detail ||
+          "Could not analyze the uploaded document. Please upload a PDF or TXT policy file.",
+      );
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
 
   const fetchPolicies = async () => {
     try {
       const data = await policyAPI.getPolicies();
       setPolicies(data || []);
     } catch (e) {
-      console.warn('Could not load policies:', e);
+      console.warn("Could not load policies:", e);
     }
   };
 
@@ -450,32 +698,163 @@ export const SinglePageChatbot = () => {
       const data = await faqAPI.getFaqs();
       setFaqs(data || []);
     } catch (e) {
-      console.warn('Could not load faqs:', e);
+      console.warn("Could not load faqs:", e);
     }
   };
 
-  const handleSend = async (queryText = null) => {
+  const handleSend = async (queryText = null, options = {}) => {
     const textToSend = queryText || inputQuery;
     if (!textToSend.trim() || loading) return;
 
+    const inferredPolicy = findPolicyInText(textToSend);
+    if (inferredPolicy) {
+      applyPolicyContext(inferredPolicy);
+    }
+
+    const policyContext = inferredPolicy || selectedPolicyContext;
+
+    const premiumRequest =
+      /calculate annual premium|annual premium|premium estimate|estimate.*premium/i.test(
+        textToSend,
+      );
+    const claimRequest =
+      /claim eligibility|check claim|eligible.*claim|claim.*eligibility/i.test(
+        textToSend,
+      );
+    const pedRequest =
+      /ped waiting period|pre-existing disease|pre-existing condition|waiting period/i.test(
+        textToSend,
+      );
+
+    const lastAssistantMessage = [...messages]
+      .reverse()
+      .find((msg) => msg.sender === "assistant");
+    const claimFollowupContext =
+      awaitingClaimAmount ||
+      !!policyContext ||
+      /claim chart/i.test(lastAssistantMessage?.content || "") ||
+      /ClaimAgent \(Policy Chart\)/i.test(
+        lastAssistantMessage?.agent_name || "",
+      );
+
+    if (isAmountOnlyInput(textToSend) && claimFollowupContext) {
+      const claimAmount = extractClaimAmountFromText(textToSend);
+      if (!claimAmount) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: "claim-amount-repeat-" + Date.now(),
+            sender: "assistant",
+            agent_name: "ClaimAgent",
+            content:
+              "Please reply with the claim amount in rupees, for example: ₹3,00,000.",
+            sources: [],
+          },
+        ]);
+        if (!queryText) setInputQuery("");
+        return;
+      }
+
+      setAwaitingClaimAmount(false);
+      return handleSend(
+        `Check claim amount coverage for ₹${claimAmount.toLocaleString("en-IN")}`,
+        {
+          ...activePolicyFilter,
+          claim_amount: claimAmount,
+          displayText: textToSend,
+        },
+      );
+    }
+
+    if (awaitingClaimAmount) {
+      const claimAmount = extractClaimAmountFromText(textToSend);
+      if (!claimAmount) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: "claim-amount-repeat-" + Date.now(),
+            sender: "assistant",
+            agent_name: "ClaimAgent",
+            content:
+              "Please reply with the claim amount in rupees, for example: ₹3,00,000.",
+            sources: [],
+          },
+        ]);
+        if (!queryText) setInputQuery("");
+        return;
+      }
+
+      setAwaitingClaimAmount(false);
+      return handleSend(
+        `Check claim amount coverage for ₹${claimAmount.toLocaleString("en-IN")}`,
+        {
+          ...activePolicyFilter,
+          claim_amount: claimAmount,
+          displayText: textToSend,
+        },
+      );
+    }
+
+    if (premiumRequest && !policyContext && !options.filter_policy) {
+      startPremiumSelection();
+      if (!queryText) setInputQuery("");
+      return;
+    }
+
+    if (claimRequest && !policyContext && !options.filter_policy) {
+      startClaimSelection(textToSend);
+      if (!queryText) setInputQuery("");
+      return;
+    }
+
+    if (pedRequest && !policyContext && !options.filter_policy) {
+      startPedSelection();
+      if (!queryText) setInputQuery("");
+      return;
+    }
+
+    const requestOptions = {
+      ...options,
+    };
+    if (policyContext) {
+      requestOptions.filter_company = policyContext.insurer_name;
+      requestOptions.filter_policy = policyContext.policy_name;
+    }
+
+    if (
+      /show policy catalogue|policy catalogue|policy catalog|available policies/i.test(
+        textToSend,
+      )
+    ) {
+      setPolicyActionMode("browse");
+      clearCompareSelection();
+      setActiveDrawer("catalog");
+      if (!queryText) setInputQuery("");
+      return;
+    }
+
     const userMessage = {
-      id: 'usr-' + Date.now(),
-      sender: 'user',
-      content: textToSend,
+      id: "usr-" + Date.now(),
+      sender: "user",
+      content: options.displayText || textToSend,
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    if (!queryText) setInputQuery('');
+    if (!queryText) setInputQuery("");
     setLoading(true);
 
     try {
-      const res = await chatAPI.sendQuery(textToSend, sessionId);
+      const res = await chatAPI.sendQuery(
+        textToSend,
+        sessionId,
+        requestOptions,
+      );
       if (res.session_id) setSessionId(res.session_id);
 
       const assistantMessage = {
-        id: 'ast-' + Date.now(),
-        sender: 'assistant',
-        agent_name: res.agent_used || 'Multi-Agent Assistant',
+        id: "ast-" + Date.now(),
+        sender: "assistant",
+        agent_name: res.agent_used || "Multi-Agent Assistant",
         intent: res.intent,
         content: res.message,
         sources: res.sources || [],
@@ -483,18 +862,30 @@ export const SinglePageChatbot = () => {
         comparison_table: res.comparison_table,
       };
 
+      if (/ClaimAgent \(Policy Chart\)/i.test(res.agent_used || "")) {
+        setAwaitingClaimAmount(true);
+      } else if (
+        /ClaimAgent \(Amount Verification/i.test(res.agent_used || "")
+      ) {
+        setAwaitingClaimAmount(false);
+      }
+
       setMessages((prev) => [...prev, assistantMessage]);
       fetchSessions();
     } catch (err) {
-      console.error('Chat error:', err);
+      console.error("Chat error:", err);
+      const detail = err.response?.data?.detail;
+      const errorMessage = !err.response
+        ? `Unable to reach backend server at ${import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8001/api/v1"}.`
+        : `Chat request failed (${err.response.status}): ${detail || err.message}`;
       setMessages((prev) => [
         ...prev,
         {
-          id: 'err-' + Date.now(),
-          sender: 'assistant',
-          agent_name: 'Error',
-          content: 'Unable to reach backend server. Please verify FastAPI service is running.',
-        }
+          id: "err-" + Date.now(),
+          sender: "assistant",
+          agent_name: "Error",
+          content: errorMessage,
+        },
       ]);
     } finally {
       setLoading(false);
@@ -503,28 +894,41 @@ export const SinglePageChatbot = () => {
 
   const startNewChat = () => {
     setSessionId(null);
+    setUploadedPolicySummary(null);
+    setUploadError("");
+    setPolicyActionMode("none");
+    setSelectedPolicyContext(null);
+    setAwaitingClaimAmount(false);
+    clearCompareSelection();
     setMessages([
       {
-        id: 'welcome-' + Date.now(),
-        sender: 'assistant',
-        agent_name: 'Clario AI Assistant',
-        content: 'New chat session started! What insurance coverage or claim query can I resolve for you?',
+        id: "welcome-" + Date.now(),
+        sender: "assistant",
+        agent_name: "Clario AI Assistant",
+        content:
+          "New chat session started! What insurance coverage or claim query can I resolve for you?",
         sources: [],
-      }
+      },
     ]);
   };
 
   const loadSession = (s) => {
     setSessionId(s.id);
+    setUploadedPolicySummary(null);
+    setUploadError("");
+    setPolicyActionMode("none");
+    setSelectedPolicyContext(null);
+    setAwaitingClaimAmount(false);
+    clearCompareSelection();
     const converted = s.messages.map((m) => ({
       id: m.id,
       sender: m.sender,
-      agent_name: m.agent_name || (m.sender === 'user' ? 'User' : 'Assistant'),
+      agent_name: m.agent_name || (m.sender === "user" ? "User" : "Assistant"),
       content: m.content,
       sources: m.sources || [],
     }));
     setMessages(converted);
-    setActiveDrawer('none');
+    setActiveDrawer("none");
   };
 
   const handleSaveProfile = async (e) => {
@@ -534,15 +938,24 @@ export const SinglePageChatbot = () => {
     try {
       const payload = {
         ...profileForm,
-        age: profileForm.age !== '' ? Number(profileForm.age) : 30,
+        age: profileForm.age !== "" ? Number(profileForm.age) : undefined,
         family_members_count: isDrawerFamilyCoverage
-          ? (profileForm.family_members_count !== '' ? Number(profileForm.family_members_count) : 2)
+          ? profileForm.family_members_count !== ""
+            ? Number(profileForm.family_members_count)
+            : 2
           : 1,
-        sum_insured_preference: profileForm.sum_insured_preference !== '' ? Number(profileForm.sum_insured_preference) : 1000000,
-        budget_annual_max: profileForm.budget_annual_max !== '' ? Number(profileForm.budget_annual_max) : 25000,
+        sum_insured_preference:
+          profileForm.sum_insured_preference !== ""
+            ? Number(profileForm.sum_insured_preference)
+            : undefined,
+        budget_annual_max:
+          profileForm.budget_annual_max !== ""
+            ? Number(profileForm.budget_annual_max)
+            : undefined,
       };
       await profileAPI.updateProfile(payload);
       await refreshProfile();
+      startNewChat();
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
     } catch (err) {
@@ -553,18 +966,194 @@ export const SinglePageChatbot = () => {
   };
 
   const getAgentBadgeClass = (agentName) => {
-    if (!agentName) return 'badge-coverage';
+    if (!agentName) return "badge-coverage";
     const lower = agentName.toLowerCase();
-    if (lower.includes('sales')) return 'badge-sales';
-    if (lower.includes('compare')) return 'badge-comparison';
-    if (lower.includes('claim')) return 'badge-claims';
-    return 'badge-coverage';
+    if (lower.includes("sales")) return "badge-sales";
+    if (lower.includes("compare")) return "badge-comparison";
+    if (lower.includes("claim")) return "badge-claims";
+    return "badge-coverage";
   };
 
-  const filteredPolicies = policies.filter((p) =>
-    p.policy_name.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-    p.insurer_name.toLowerCase().includes(catalogSearch.toLowerCase())
+  const filteredPolicies = policies.filter(
+    (p) =>
+      p.policy_name.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+      p.insurer_name.toLowerCase().includes(catalogSearch.toLowerCase()),
   );
+
+  const findPolicyInText = (text) => {
+    const lower = (text || "").toLowerCase();
+    return policies.find((policy) => {
+      const insurer = (policy.insurer_name || "").toLowerCase();
+      const policyName = (policy.policy_name || "").toLowerCase();
+      const combined = `${insurer} ${policyName}`.trim();
+      return (
+        (insurer && lower.includes(insurer)) ||
+        (policyName && lower.includes(policyName)) ||
+        (combined && lower.includes(combined))
+      );
+    });
+  };
+
+  const applyPolicyContext = (policy) => {
+    if (!policy) return;
+    setSelectedPolicyContext({
+      policy_id: policy.policy_id || policy.id || null,
+      insurer_name: policy.insurer_name,
+      policy_name: policy.policy_name,
+    });
+  };
+
+  const getPolicySelectionKey = (policy) =>
+    String(
+      policy.policy_id ||
+        policy.id ||
+        `${policy.insurer_name}-${policy.policy_name}`,
+    );
+
+  const clearCompareSelection = () => {
+    setSelectedComparePolicyIds([]);
+  };
+
+  const toggleComparePolicy = (policy) => {
+    const key = getPolicySelectionKey(policy);
+    setSelectedComparePolicyIds((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key],
+    );
+  };
+
+  const openPolicySelection = (actionMode, baseQuery = "") => {
+    setPolicyActionMode(actionMode);
+    setCatalogSearch("");
+    clearCompareSelection();
+    fetchPolicies();
+    setActiveDrawer("catalog");
+    if (actionMode === "claim") {
+      void baseQuery;
+    }
+    const promptMap = {
+      premium:
+        "Please choose one policy from the catalogue first. Once you pick a plan, I’ll calculate its policy-specific annual premium.",
+      compare: uploadedPolicySummary
+        ? "Select one or more catalogue policies below. I’ll compare them against your uploaded policy."
+        : "Select any number of policies below. I’ll compare the selected plans side by side.",
+      claim:
+        "Please choose one policy from the catalogue first. Once you pick a plan, I’ll show the claim chart for that policy.",
+      ped: "Please choose one policy from the catalogue first. I’ll use that policy context to tell you the PED waiting period.",
+      browse: "",
+    };
+    if (promptMap[actionMode] !== "") {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${actionMode}-prompt-` + Date.now(),
+          sender: "assistant",
+          agent_name:
+            actionMode === "claim"
+              ? "ClaimAgent"
+              : actionMode === "ped"
+                ? "CoverageAgent"
+                : actionMode === "compare"
+                  ? "ComparisonAgent"
+                  : "PremiumAgent",
+          content: promptMap[actionMode] || promptMap.premium,
+          sources: [],
+        },
+      ]);
+    }
+  };
+
+  const startPremiumSelection = () => {
+    openPolicySelection("premium");
+  };
+
+  const startCompareSelection = () => {
+    openPolicySelection("compare");
+  };
+
+  const startClaimSelection = (baseQuery) => {
+    openPolicySelection("claim", baseQuery);
+  };
+
+  const startPedSelection = () => {
+    openPolicySelection("ped");
+  };
+
+  const extractClaimAmountFromText = (text) => {
+    const digits = parseINRInput(text);
+    if (!digits) return null;
+    const amount = Number(digits);
+    return Number.isFinite(amount) && amount > 0 ? amount : null;
+  };
+
+  const isAmountOnlyInput = (text) => {
+    const trimmed = (text || "").trim();
+    return (
+      /^\d[\d,\s.]*$/.test(trimmed) ||
+      /^(?:₹|rs\.?|inr)\s*\d[\d,\s.]*$/i.test(trimmed)
+    );
+  };
+
+  const activePolicyFilter = selectedPolicyContext
+    ? {
+        filter_company: selectedPolicyContext.insurer_name,
+        filter_policy: selectedPolicyContext.policy_name,
+      }
+    : {};
+
+  const parseHighlights = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean).map(String);
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(Boolean).map(String);
+        }
+      } catch (e) {
+        return value
+          .split(/\n|;|\|/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+    }
+    return [];
+  };
+
+  const compareSelectedPolicies = () => {
+    const selectedPolicies = policies.filter((policy) =>
+      selectedComparePolicyIds.includes(getPolicySelectionKey(policy)),
+    );
+
+    const minimumSelection = uploadedPolicySummary ? 1 : 2;
+    if (selectedPolicies.length < minimumSelection) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "compare-select-more-" + Date.now(),
+          sender: "assistant",
+          agent_name: "ComparisonAgent",
+          content: uploadedPolicySummary
+            ? "Please select at least one catalogue policy to compare with your uploaded policy."
+            : "Please select at least two policies to compare.",
+          sources: [],
+        },
+      ]);
+      return;
+    }
+
+    const compareQuery = `Compare these policies side by side: ${selectedPolicies
+      .map((policy) => `${policy.insurer_name} - ${policy.policy_name}`)
+      .join(", ")}.`;
+    setPolicyActionMode("none");
+    setActiveDrawer("none");
+    handleSend(compareQuery, {
+      displayText: compareQuery,
+      compare_policy_ids: selectedPolicies.map((policy) =>
+        Number(policy.policy_id || policy.id),
+      ),
+    });
+    setSelectedComparePolicyIds([]);
+  };
 
   return (
     <div className="app-layout">
@@ -574,7 +1163,9 @@ export const SinglePageChatbot = () => {
           <div className="brand-icon">🛡️</div>
           <div>
             <div className="brand-title">Clario AI</div>
-            <div className="brand-subtitle">Single-Page AI Health Assistant</div>
+            <div className="brand-subtitle">
+              Single-Page AI Health Assistant
+            </div>
           </div>
         </div>
 
@@ -584,33 +1175,63 @@ export const SinglePageChatbot = () => {
             <span>Multi-Agent RAG Online</span>
           </div>
 
-          <button 
-            className="btn-secondary" 
-            style={{ padding: '6px 14px', fontSize: '0.82rem', background: activeDrawer === 'profile' ? 'rgba(16,185,129,0.2)' : '' }}
-            onClick={() => setActiveDrawer(activeDrawer === 'profile' ? 'none' : 'profile')}
+          <button
+            className="btn-secondary"
+            style={{
+              padding: "6px 14px",
+              fontSize: "0.82rem",
+              background:
+                activeDrawer === "profile" ? "rgba(16,185,129,0.2)" : "",
+            }}
+            onClick={() =>
+              setActiveDrawer(activeDrawer === "profile" ? "none" : "profile")
+            }
           >
             <UserCheck size={16} /> Profile Details
           </button>
 
-          <button 
-            className="btn-secondary" 
-            style={{ padding: '6px 14px', fontSize: '0.82rem', background: activeDrawer === 'catalog' ? 'rgba(16,185,129,0.2)' : '' }}
-            onClick={() => setActiveDrawer(activeDrawer === 'catalog' ? 'none' : 'catalog')}
+          <button
+            className="btn-secondary"
+            style={{
+              padding: "6px 14px",
+              fontSize: "0.82rem",
+              background:
+                activeDrawer === "catalog" ? "rgba(16,185,129,0.2)" : "",
+            }}
+            onClick={() => {
+              if (activeDrawer === "catalog") {
+                setActiveDrawer("none");
+                setPolicyActionMode("none");
+                clearCompareSelection();
+              } else {
+                setPolicyActionMode("browse");
+                clearCompareSelection();
+                setActiveDrawer("catalog");
+              }
+            }}
           >
             <BookOpen size={16} /> Products
           </button>
 
-          <button 
-            className="btn-secondary" 
-            style={{ padding: '6px 14px', fontSize: '0.82rem', background: activeDrawer === 'faqs' ? 'rgba(16,185,129,0.2)' : '' }}
-            onClick={() => setActiveDrawer(activeDrawer === 'faqs' ? 'none' : 'faqs')}
+          <button
+            className="btn-secondary"
+            style={{
+              padding: "6px 14px",
+              fontSize: "0.82rem",
+              background: activeDrawer === "faqs" ? "rgba(16,185,129,0.2)" : "",
+            }}
+            onClick={() =>
+              setActiveDrawer(activeDrawer === "faqs" ? "none" : "faqs")
+            }
           >
             <HelpCircle size={16} /> FAQs
           </button>
 
           {user && (
             <div className="user-pill">
-              <div className="user-avatar">{user.full_name ? user.full_name[0].toUpperCase() : 'U'}</div>
+              <div className="user-avatar">
+                {user.full_name ? user.full_name[0].toUpperCase() : "U"}
+              </div>
               <span>{user.full_name || user.email}</span>
             </div>
           )}
@@ -622,21 +1243,55 @@ export const SinglePageChatbot = () => {
       </header>
 
       {/* Main Single-Page Chatbot Body */}
-      <div className="main-body" style={{ position: 'relative' }}>
+      <div className="main-body" style={{ position: "relative" }}>
         {/* Left History Sidebar */}
-        <aside className="sidebar" style={{ width: '280px', flexShrink: 0 }}>
-          <button className="btn-primary" style={{ width: '100%', marginBottom: '16px' }} onClick={startNewChat}>
+        <aside className="sidebar" style={{ width: "280px", flexShrink: 0 }}>
+          <button
+            className="btn-primary"
+            style={{ width: "100%", marginBottom: "16px" }}
+            onClick={startNewChat}
+          >
             <Plus size={18} /> New Chat Session
           </button>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', padding: '0 4px' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <History size={13} style={{ color: 'var(--cyan)' }} /> Past Conversations ({sessions.length})
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "8px",
+              padding: "0 4px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                color: "var(--text-dim)",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <History size={13} style={{ color: "var(--cyan)" }} /> Past
+              Conversations ({sessions.length})
             </div>
             {sessions.length > 0 && (
               <button
                 onClick={handleClearAllSessions}
-                style={{ background: 'transparent', border: 'none', color: '#fb7185', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#fb7185",
+                  fontSize: "0.72rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "3px",
+                }}
                 title="Clear all chat history"
               >
                 <Trash2 size={12} /> Clear All
@@ -644,32 +1299,55 @@ export const SinglePageChatbot = () => {
             )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', flex: 1 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              overflowY: "auto",
+              flex: 1,
+            }}
+          >
             {sessions.map((s) => (
               <div
                 key={s.id}
-                className={`history-item ${sessionId === s.id ? 'active' : ''}`}
+                className={`history-item ${sessionId === s.id ? "active" : ""}`}
                 onClick={() => loadSession(s)}
               >
-                <Bot size={15} style={{ flexShrink: 0, color: 'var(--cyan)' }} />
-                
+                <Bot
+                  size={15}
+                  style={{ flexShrink: 0, color: "var(--cyan)" }}
+                />
+
                 {editingSessionId === s.id ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }} onClick={(e) => e.stopPropagation()}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      flex: 1,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <input
                       type="text"
                       className="form-input"
-                      style={{ padding: '2px 6px', fontSize: '0.8rem', height: '26px' }}
+                      style={{
+                        padding: "2px 6px",
+                        fontSize: "0.8rem",
+                        height: "26px",
+                      }}
                       value={editingTitle}
                       onChange={(e) => setEditingTitle(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveEdit(e, s.id);
-                        if (e.key === 'Escape') setEditingSessionId(null);
+                        if (e.key === "Enter") handleSaveEdit(e, s.id);
+                        if (e.key === "Escape") setEditingSessionId(null);
                       }}
                       autoFocus
                     />
                     <button
                       className="delete-session-btn"
-                      style={{ color: '#34d399' }}
+                      style={{ color: "#34d399" }}
                       onClick={(e) => handleSaveEdit(e, s.id)}
                       title="Save title"
                     >
@@ -678,8 +1356,16 @@ export const SinglePageChatbot = () => {
                   </div>
                 ) : (
                   <>
-                    <span className="history-item-title">{s.session_title}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <span className="history-item-title">
+                      {s.session_title}
+                    </span>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "2px",
+                      }}
+                    >
                       <button
                         className="delete-session-btn"
                         onClick={(e) => handleStartEdit(e, s)}
@@ -701,25 +1387,49 @@ export const SinglePageChatbot = () => {
             ))}
           </div>
 
-
-
-          <div style={{ paddingTop: '16px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+          <div
+            style={{
+              paddingTop: "16px",
+              borderTop: "1px solid var(--border-color)",
+              marginTop: "auto",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-muted)",
+                textAlign: "center",
+              }}
+            >
               LangGraph RAG Engine v1.0
             </div>
           </div>
         </aside>
 
         {/* Central Chat Feed */}
-        <main className="content-area" style={{ flex: 1, height: 'calc(100vh - 68px)', padding: '20px 28px', display: 'flex', flexDirection: 'column' }}>
+        <main
+          className="content-area"
+          style={{
+            flex: 1,
+            height: "calc(100vh - 68px)",
+            padding: "20px 28px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <div className="chat-messages-scroll" style={{ flex: 1 }}>
             {messages.map((msg) => {
-              const isUser = msg.sender === 'user';
+              const isUser = msg.sender === "user";
               return (
-                <div key={msg.id} className={`chat-bubble ${isUser ? 'user' : 'assistant'}`}>
+                <div
+                  key={msg.id}
+                  className={`chat-bubble ${isUser ? "user" : "assistant"}`}
+                >
                   {!isUser && (
-                    <div className={`agent-badge ${getAgentBadgeClass(msg.agent_name)}`}>
-                      <Sparkles size={12} /> {msg.agent_name || 'AI Assistant'}
+                    <div
+                      className={`agent-badge ${getAgentBadgeClass(msg.agent_name)}`}
+                    >
+                      <Sparkles size={12} /> {msg.agent_name || "AI Assistant"}
                     </div>
                   )}
 
@@ -728,14 +1438,20 @@ export const SinglePageChatbot = () => {
               );
             })}
 
-
             {loading && (
-              <div className="chat-bubble assistant" style={{ width: 'fit-content' }}>
+              <div
+                className="chat-bubble assistant"
+                style={{ width: "fit-content" }}
+              >
                 <div className="agent-badge badge-coverage">
-                  <Sparkles size={12} className="pulse-dot" /> Multi-Agent Execution...
+                  <Sparkles size={12} className="pulse-dot" /> Multi-Agent
+                  Execution...
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Processing query through Coverage RAG, Sales & Actuarial Graph...
+                <div
+                  style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}
+                >
+                  Processing query through Coverage RAG, Sales & Actuarial
+                  Graph...
                 </div>
               </div>
             )}
@@ -744,17 +1460,94 @@ export const SinglePageChatbot = () => {
           </div>
 
           {/* Quick Action Prompt Chips */}
-          <div style={{ marginTop: '12px' }}>
-            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sparkles size={14} style={{ color: 'var(--cyan)' }} /> Quick Actions ("What do you want to do?"):
+          <div style={{ marginTop: "12px" }}>
+            <div
+              style={{
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                color: "var(--text-muted)",
+                marginBottom: "6px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Sparkles size={14} style={{ color: "var(--cyan)" }} /> Quick
+              Actions ("What do you want to do?"):
             </div>
             <div className="quick-chips-container">
               {QUICK_PROMPTS.map((chip, idx) => (
-                <button key={idx} className="chip-btn" onClick={() => handleSend(chip.query)}>
+                <button
+                  key={idx}
+                  className="chip-btn"
+                  onClick={() =>
+                    /calculate annual premium/i.test(chip.text)
+                      ? startPremiumSelection()
+                      : /compare policies/i.test(chip.text)
+                        ? startCompareSelection()
+                        : /check claim eligibility/i.test(chip.text)
+                          ? selectedPolicyContext
+                            ? handleSend(chip.query, activePolicyFilter)
+                            : startClaimSelection(chip.query)
+                          : /what is ped waiting period/i.test(chip.text)
+                            ? selectedPolicyContext
+                              ? handleSend(chip.query, activePolicyFilter)
+                              : startPedSelection()
+                            : /show policy catalogue/i.test(chip.text)
+                              ? (() => {
+                                  setPolicyActionMode("browse");
+                                  clearCompareSelection();
+                                  setActiveDrawer("catalog");
+                                })()
+                              : handleSend(chip.query, activePolicyFilter)
+                  }
+                >
                   {chip.text}
                 </button>
               ))}
             </div>
+
+            {uploadedPolicySummary && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  padding: "12px 14px",
+                  borderRadius: "var(--radius-md)",
+                  background: "rgba(16,185,129,0.12)",
+                  border: "1px solid rgba(16,185,129,0.28)",
+                  color: "var(--text-main)",
+                  fontSize: "0.84rem",
+                }}
+              >
+                <strong>Uploaded policy loaded:</strong>{" "}
+                {uploadedPolicySummary.policy_name ||
+                  uploadedPolicySummary.source_file_name}
+                <div style={{ color: "var(--text-muted)", marginTop: "4px" }}>
+                  {uploadedPolicySummary.sum_assured_amount
+                    ? `Sum assured ₹${Number(uploadedPolicySummary.sum_assured_amount).toLocaleString("en-IN")}`
+                    : "Sum assured not detected"}
+                  {uploadedPolicySummary.premium_amount
+                    ? ` • Premium ₹${Number(uploadedPolicySummary.premium_amount).toLocaleString("en-IN")}`
+                    : ""}
+                </div>
+              </div>
+            )}
+
+            {uploadError && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  padding: "10px 14px",
+                  borderRadius: "var(--radius-md)",
+                  background: "rgba(244,63,94,0.14)",
+                  border: "1px solid rgba(244,63,94,0.35)",
+                  color: "#fb7185",
+                  fontSize: "0.84rem",
+                }}
+              >
+                {uploadError}
+              </div>
+            )}
 
             {/* Input Bar */}
             <form
@@ -762,17 +1555,51 @@ export const SinglePageChatbot = () => {
                 e.preventDefault();
                 handleSend();
               }}
-              style={{ display: 'flex', gap: '12px', marginTop: '10px' }}
+              style={{
+                display: "flex",
+                gap: "10px",
+                marginTop: "10px",
+                alignItems: "stretch",
+              }}
             >
+              <input
+                ref={uploadInputRef}
+                type="file"
+                accept=".pdf,.txt,application/pdf,text/plain"
+                style={{ display: "none" }}
+                onChange={handlePolicyUpload}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleUploadButtonClick}
+                disabled={loading || uploadingDocument}
+                title="Upload existing policy document"
+                style={{
+                  width: "48px",
+                  minWidth: "48px",
+                  padding: 0,
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Plus size={18} />
+              </button>
               <input
                 type="text"
                 className="form-input"
                 placeholder="Ask any policy question, coverage terms, claim rules, or premium..."
                 value={inputQuery}
                 onChange={(e) => setInputQuery(e.target.value)}
-                disabled={loading}
+                disabled={loading || uploadingDocument}
+                style={{ flex: 1 }}
               />
-              <button type="submit" className="btn-primary" disabled={loading || !inputQuery.trim()}>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={loading || uploadingDocument || !inputQuery.trim()}
+              >
                 <Send size={18} />
               </button>
             </form>
@@ -780,33 +1607,99 @@ export const SinglePageChatbot = () => {
         </main>
 
         {/* Slide-Over Drawer: Profile Details */}
-        {activeDrawer === 'profile' && (
-          <div style={{ position: 'absolute', top: 0, right: 0, width: '440px', height: '100%', background: 'rgba(17, 24, 39, 0.96)', backdropFilter: 'blur(20px)', borderLeft: '1px solid var(--border-highlight)', zIndex: 100, padding: '24px', display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <UserCheck size={20} style={{ color: 'var(--cyan)' }} /> Profile Details
+        {activeDrawer === "profile" && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: "440px",
+              height: "100%",
+              background: "rgba(17, 24, 39, 0.96)",
+              backdropFilter: "blur(20px)",
+              borderLeft: "1px solid var(--border-highlight)",
+              zIndex: 100,
+              padding: "24px",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "-10px 0 30px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "20px",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "1.15rem",
+                  fontWeight: 800,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <UserCheck size={20} style={{ color: "var(--cyan)" }} /> Profile
+                Details
               </h3>
-              <button className="btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setActiveDrawer('none')}>
+              <button
+                className="btn-secondary"
+                style={{ padding: "4px 8px" }}
+                onClick={() => {
+                  setPolicyActionMode("none");
+                  setActiveDrawer("none");
+                }}
+              >
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div style={{ flex: 1, overflowY: "auto" }}>
               {profileSuccess && (
-                <div style={{ padding: '10px', background: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.4)', color: '#34d399', borderRadius: 'var(--radius-md)', fontSize: '0.82rem', marginBottom: '16px' }}>
-                  <CheckCircle2 size={16} inline /> Profile updated! Chat agent is now personalized.
+                <div
+                  style={{
+                    padding: "10px",
+                    background: "rgba(16,185,129,0.2)",
+                    border: "1px solid rgba(16,185,129,0.4)",
+                    color: "#34d399",
+                    borderRadius: "var(--radius-md)",
+                    fontSize: "0.82rem",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <CheckCircle2 size={16} inline /> Profile updated! Chat agent
+                  is now personalized.
                 </div>
               )}
 
               <form onSubmit={handleSaveProfile}>
                 <div className="form-group">
                   <label className="form-label">Age</label>
-                  <input type="number" className="form-input" value={profileForm.age} onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })} placeholder="e.g. 30" required />
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={profileForm.age}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, age: e.target.value })
+                    }
+                    placeholder="e.g. 30"
+                    required
+                  />
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Gender</label>
-                  <select className="form-select" value={profileForm.gender} onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })} required>
+                  <select
+                    className="form-select"
+                    value={profileForm.gender}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, gender: e.target.value })
+                    }
+                    required
+                  >
                     <option value="">Select Gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -816,12 +1709,31 @@ export const SinglePageChatbot = () => {
 
                 <div className="form-group">
                   <label className="form-label">City</label>
-                  <input type="text" className="form-input" value={profileForm.city} onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })} placeholder="e.g. Mumbai" required />
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={profileForm.city}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, city: e.target.value })
+                    }
+                    placeholder="e.g. Mumbai"
+                    required
+                  />
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Coverage Type</label>
-                  <select className="form-select" value={profileForm.coverage_type} onChange={(e) => setProfileForm({ ...profileForm, coverage_type: e.target.value })} required>
+                  <select
+                    className="form-select"
+                    value={profileForm.coverage_type}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        coverage_type: e.target.value,
+                      })
+                    }
+                    required
+                  >
                     <option value="">Select Coverage Type</option>
                     <option value="Individual">Individual</option>
                     <option value="Family Floater">Family Floater</option>
@@ -833,47 +1745,94 @@ export const SinglePageChatbot = () => {
                 {isDrawerFamilyCoverage && (
                   <div className="form-group">
                     <label className="form-label">Family Members Count</label>
-                    <input type="number" className="form-input" value={profileForm.family_members_count} onChange={(e) => setProfileForm({ ...profileForm, family_members_count: e.target.value })} placeholder="e.g. 2, 4" min="1" required />
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={profileForm.family_members_count}
+                      onChange={(e) =>
+                        setProfileForm({
+                          ...profileForm,
+                          family_members_count: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. 2, 4"
+                      min="1"
+                      required
+                    />
                   </div>
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">Sum Insured Preference (₹)</label>
+                  <label className="form-label">
+                    Sum Insured Preference (₹)
+                  </label>
                   <input
                     type="text"
                     className="form-input"
                     value={formatINRInput(profileForm.sum_insured_preference)}
-                    onChange={(e) => setProfileForm({ ...profileForm, sum_insured_preference: parseINRInput(e.target.value) })}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        sum_insured_preference: parseINRInput(e.target.value),
+                      })
+                    }
                     placeholder="e.g. 10,00,000 (10 Lakhs)"
                     required
                   />
                   {profileForm.sum_insured_preference && (
-                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '4px', fontWeight: 600 }}>
+                    <div
+                      style={{
+                        fontSize: "0.78rem",
+                        color: "#38bdf8",
+                        marginTop: "4px",
+                        fontWeight: 600,
+                      }}
+                    >
                       💡 {getINRHelperText(profileForm.sum_insured_preference)}
                     </div>
                   )}
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Max Annual Premium Budget (₹)</label>
+                  <label className="form-label">
+                    Max Annual Premium Budget (₹)
+                  </label>
                   <input
                     type="text"
                     className="form-input"
                     value={formatINRInput(profileForm.budget_annual_max)}
-                    onChange={(e) => setProfileForm({ ...profileForm, budget_annual_max: parseINRInput(e.target.value) })}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        budget_annual_max: parseINRInput(e.target.value),
+                      })
+                    }
                     placeholder="e.g. 25,000 (25 Thousand)"
                     required
                   />
                   {profileForm.budget_annual_max && (
-                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '4px', fontWeight: 600 }}>
+                    <div
+                      style={{
+                        fontSize: "0.78rem",
+                        color: "#38bdf8",
+                        marginTop: "4px",
+                        fontWeight: 600,
+                      }}
+                    >
                       💡 {getINRHelperText(profileForm.budget_annual_max)}
                     </div>
                   )}
                 </div>
 
                 {/* Pre-Existing Diseases: Multi-Select Dropdown */}
-                <div className="form-group" style={{ position: "relative" }} ref={drawerPedRef}>
-                  <label className="form-label">Pre-Existing Diseases (Multi-Select)</label>
+                <div
+                  className="form-group"
+                  style={{ position: "relative" }}
+                  ref={drawerPedRef}
+                >
+                  <label className="form-label">
+                    Pre-Existing Diseases (Multi-Select)
+                  </label>
                   <div
                     className="form-input"
                     style={{
@@ -889,9 +1848,22 @@ export const SinglePageChatbot = () => {
                     }}
                     onClick={() => setDrawerPedOpen(!drawerPedOpen)}
                   >
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", flex: 1 }}>
-                      {(!profileForm.pre_existing_diseases || profileForm.pre_existing_diseases.length === 0) ? (
-                        <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "6px",
+                        flex: 1,
+                      }}
+                    >
+                      {!profileForm.pre_existing_diseases ||
+                      profileForm.pre_existing_diseases.length === 0 ? (
+                        <span
+                          style={{
+                            color: "var(--text-muted)",
+                            fontSize: "0.85rem",
+                          }}
+                        >
                           Select health conditions...
                         </span>
                       ) : (
@@ -921,7 +1893,10 @@ export const SinglePageChatbot = () => {
                         ))
                       )}
                     </div>
-                    <ChevronDown size={16} style={{ color: "var(--text-muted)" }} />
+                    <ChevronDown
+                      size={16}
+                      style={{ color: "var(--text-muted)" }}
+                    />
                   </div>
 
                   {drawerPedOpen && (
@@ -944,8 +1919,11 @@ export const SinglePageChatbot = () => {
                     >
                       {PED_OPTIONS.map((opt) => {
                         const isChecked = opt.startsWith("None")
-                          ? (!profileForm.pre_existing_diseases || profileForm.pre_existing_diseases.length === 0)
-                          : (profileForm.pre_existing_diseases || []).includes(opt);
+                          ? !profileForm.pre_existing_diseases ||
+                            profileForm.pre_existing_diseases.length === 0
+                          : (profileForm.pre_existing_diseases || []).includes(
+                              opt,
+                            );
                         return (
                           <div
                             key={opt}
@@ -958,7 +1936,9 @@ export const SinglePageChatbot = () => {
                               cursor: "pointer",
                               borderRadius: "var(--radius-sm)",
                               fontSize: "0.83rem",
-                              background: isChecked ? "rgba(16, 185, 129, 0.15)" : "transparent",
+                              background: isChecked
+                                ? "rgba(16, 185, 129, 0.15)"
+                                : "transparent",
                               color: isChecked ? "#34d399" : "var(--text-main)",
                               marginBottom: "2px",
                             }}
@@ -1002,7 +1982,8 @@ export const SinglePageChatbot = () => {
                   >
                     <Info size={15} /> Coverage Type Summary & Disclaimer
                   </div>
-                  {profileForm.coverage_type && COVERAGE_DESCRIPTIONS[profileForm.coverage_type] ? (
+                  {profileForm.coverage_type &&
+                  COVERAGE_DESCRIPTIONS[profileForm.coverage_type] ? (
                     <div>
                       <div
                         style={{
@@ -1023,7 +2004,10 @@ export const SinglePageChatbot = () => {
                           margin: 0,
                         }}
                       >
-                        {COVERAGE_DESCRIPTIONS[profileForm.coverage_type].description}
+                        {
+                          COVERAGE_DESCRIPTIONS[profileForm.coverage_type]
+                            .description
+                        }
                       </p>
                     </div>
                   ) : (
@@ -1035,13 +2019,20 @@ export const SinglePageChatbot = () => {
                         fontStyle: "italic",
                       }}
                     >
-                      Select a Coverage Type above to view detailed coverage information and policy guidelines.
+                      Select a Coverage Type above to view detailed coverage
+                      information and policy guidelines.
                     </p>
                   )}
                 </div>
 
-                <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '12px' }} disabled={savingProfile}>
-                  <Save size={16} /> {savingProfile ? 'Saving...' : 'Save Profile Details'}
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ width: "100%", marginTop: "12px" }}
+                  disabled={savingProfile}
+                >
+                  <Save size={16} />{" "}
+                  {savingProfile ? "Saving..." : "Save Profile Details"}
                 </button>
               </form>
             </div>
@@ -1049,69 +2040,451 @@ export const SinglePageChatbot = () => {
         )}
 
         {/* Slide-Over Drawer: Product Catalogue */}
-        {activeDrawer === 'catalog' && (
-          <div style={{ position: 'absolute', top: 0, right: 0, width: '480px', height: '100%', background: 'rgba(17, 24, 39, 0.96)', backdropFilter: 'blur(20px)', borderLeft: '1px solid var(--border-highlight)', zIndex: 100, padding: '24px', display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BookOpen size={20} style={{ color: 'var(--cyan)' }} /> Product Catalogue
+        {activeDrawer === "catalog" && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: "480px",
+              height: "100%",
+              background: "rgba(17, 24, 39, 0.96)",
+              backdropFilter: "blur(20px)",
+              borderLeft: "1px solid var(--border-highlight)",
+              zIndex: 100,
+              padding: "24px",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "-10px 0 30px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "1.15rem",
+                  fontWeight: 800,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <BookOpen size={20} style={{ color: "var(--cyan)" }} /> Product
+                Catalogue
               </h3>
-              <button className="btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setActiveDrawer('none')}>
+              <button
+                className="btn-secondary"
+                style={{ padding: "4px 8px" }}
+                onClick={() => setActiveDrawer("none")}
+              >
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ position: 'relative', marginBottom: '16px' }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
-              <input type="text" className="form-input" style={{ paddingLeft: '38px', fontSize: '0.85rem' }} placeholder="Search policy name..." value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} />
+            <div style={{ position: "relative", marginBottom: "16px" }}>
+              <Search
+                size={16}
+                style={{
+                  position: "absolute",
+                  left: "12px",
+                  top: "12px",
+                  color: "var(--text-muted)",
+                }}
+              />
+              <input
+                type="text"
+                className="form-input"
+                style={{ paddingLeft: "38px", fontSize: "0.85rem" }}
+                placeholder="Search policy name..."
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+              />
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {policyActionMode === "premium" && (
+              <div
+                style={{
+                  marginBottom: "14px",
+                  padding: "12px 14px",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid rgba(56,189,248,0.28)",
+                  background: "rgba(56,189,248,0.12)",
+                  color: "var(--text-main)",
+                  fontSize: "0.82rem",
+                  lineHeight: 1.5,
+                }}
+              >
+                Select one policy below. I’ll use that exact policy to calculate
+                the annual premium and show the quote in chat.
+              </div>
+            )}
+
+            {policyActionMode === "compare" && (
+              <div
+                style={{
+                  marginBottom: "14px",
+                  padding: "12px 14px",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid rgba(56,189,248,0.28)",
+                  background: "rgba(56,189,248,0.12)",
+                  color: "var(--text-main)",
+                  fontSize: "0.82rem",
+                  lineHeight: 1.5,
+                }}
+              >
+                Select any number of policies below. I’ll compare the selected
+                plans side by side.
+              </div>
+            )}
+
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+              }}
+            >
               {filteredPolicies.map((p) => (
-                <div key={p.policy_id || p.id} className="glass-card" style={{ padding: '14px' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--cyan)' }}>{p.insurer_name}</div>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{p.policy_name}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    PED Waiting: {p.ped_waiting_period_months || 36}m | Room Rent: {p.room_rent_capping || 'No Capping'}
+                <div
+                  key={p.policy_id || p.id}
+                  className="glass-card"
+                  style={{ padding: "14px" }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          color: "var(--cyan)",
+                        }}
+                      >
+                        {p.insurer_name}
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>
+                        {p.policy_name}
+                      </div>
+                    </div>
+
+                    {policyActionMode === "compare" && (
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "34px",
+                          height: "34px",
+                          flexShrink: 0,
+                          borderRadius: "999px",
+                          border: "1px solid rgba(255,255,255,0.14)",
+                          background: selectedComparePolicyIds.includes(
+                            getPolicySelectionKey(p),
+                          )
+                            ? "rgba(16,185,129,0.18)"
+                            : "rgba(255,255,255,0.04)",
+                        }}
+                        title="Select this policy for comparison"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedComparePolicyIds.includes(
+                            getPolicySelectionKey(p),
+                          )}
+                          onChange={() => toggleComparePolicy(p)}
+                          style={{ cursor: "pointer" }}
+                        />
+                      </label>
+                    )}
                   </div>
-                  <button className="btn-secondary" style={{ width: '100%', marginTop: '10px', fontSize: '0.78rem', padding: '6px' }} onClick={() => { setActiveDrawer('none'); handleSend(`Explain details and benefits of ${p.policy_name} by ${p.insurer_name}`); }}>
-                    Ask AI Assistant About This Policy
-                  </button>
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "var(--text-muted)",
+                      marginTop: "4px",
+                    }}
+                  >
+                    PED Waiting:{" "}
+                    {p.ped_waiting_period_months !== null &&
+                    p.ped_waiting_period_months !== undefined
+                      ? `${p.ped_waiting_period_months}m`
+                      : "Not available in the provided policy data."}{" "}
+                    | Room Rent:{" "}
+                    {p.room_rent_limit ||
+                      "Not available in the provided policy data."}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      padding: "10px",
+                      borderRadius: "12px",
+                      background: "rgba(15, 23, 42, 0.45)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "0.72rem",
+                        color: "var(--cyan)",
+                        fontWeight: 700,
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Detailed Description
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.82rem",
+                        color: "var(--text-main)",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {p.description ||
+                        `${p.policy_name} includes ${p.room_rent_limit || "policy-specific room coverage"}, PED waiting of ${p.ped_waiting_period_months || "?"} months, and claim support details available in the policy data.`}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "6px",
+                        marginTop: "8px",
+                      }}
+                    >
+                      {parseHighlights(p.key_highlights).length > 0 ? (
+                        parseHighlights(p.key_highlights)
+                          .slice(0, 3)
+                          .map((item, idx) => (
+                            <span
+                              key={idx}
+                              style={{
+                                padding: "5px 8px",
+                                borderRadius: "999px",
+                                background: "rgba(56,189,248,0.14)",
+                                border: "1px solid rgba(56,189,248,0.25)",
+                                color: "#e2e8f0",
+                                fontSize: "0.74rem",
+                              }}
+                            >
+                              {item}
+                            </span>
+                          ))
+                      ) : (
+                        <span
+                          style={{
+                            color: "var(--text-muted)",
+                            fontSize: "0.78rem",
+                          }}
+                        >
+                          No extra highlights available in the provided policy
+                          data.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {policyActionMode !== "browse" &&
+                    policyActionMode !== "compare" && (
+                      <button
+                        className="btn-secondary"
+                        style={{
+                          width: "100%",
+                          marginTop: "10px",
+                          fontSize: "0.78rem",
+                          padding: "6px",
+                        }}
+                        onClick={() => {
+                          applyPolicyContext(p);
+                          const policyQuery =
+                            policyActionMode === "premium"
+                              ? `Calculate annual premium for ${p.insurer_name} - ${p.policy_name}`
+                              : policyActionMode === "claim"
+                                ? `Show the claim chart for ${p.policy_name} by ${p.insurer_name}`
+                                : policyActionMode === "ped"
+                                  ? `What is the PED waiting period for ${p.policy_name} by ${p.insurer_name}?`
+                                  : `Explain details and benefits of ${p.policy_name} by ${p.insurer_name}`;
+                          setPolicyActionMode("none");
+                          setActiveDrawer("none");
+                          handleSend(policyQuery, {
+                            filter_company: p.insurer_name,
+                            filter_policy: p.policy_name,
+                          });
+                        }}
+                      >
+                        {policyActionMode === "premium"
+                          ? "Use This Policy For Premium Estimate"
+                          : policyActionMode === "claim"
+                            ? "Use This Policy For Claim Check"
+                            : policyActionMode === "ped"
+                              ? "Use This Policy For PED Waiting Period"
+                              : "Ask AI Assistant About This Policy"}
+                      </button>
+                    )}
                 </div>
               ))}
+
+              {policyActionMode === "compare" && (
+                <button
+                  className="btn-primary"
+                  style={{
+                    width: "100%",
+                    marginTop: "4px",
+                    fontSize: "0.8rem",
+                    padding: "10px 12px",
+                  }}
+                  disabled={
+                    selectedComparePolicyIds.length <
+                    (uploadedPolicySummary ? 1 : 2)
+                  }
+                  onClick={compareSelectedPolicies}
+                >
+                  {uploadedPolicySummary
+                    ? `Compare with uploaded policy${selectedComparePolicyIds.length > 0 ? ` (${selectedComparePolicyIds.length})` : ""}`
+                    : `Compare selected policies${selectedComparePolicyIds.length > 0 ? ` (${selectedComparePolicyIds.length})` : ""}`}
+                </button>
+              )}
             </div>
           </div>
         )}
 
         {/* Slide-Over Drawer: FAQs */}
-        {activeDrawer === 'faqs' && (
-          <div style={{ position: 'absolute', top: 0, right: 0, width: '440px', height: '100%', background: 'rgba(17, 24, 39, 0.96)', backdropFilter: 'blur(20px)', borderLeft: '1px solid var(--border-highlight)', zIndex: 100, padding: '24px', display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <HelpCircle size={20} style={{ color: 'var(--primary)' }} /> Glossary & FAQs
+        {activeDrawer === "faqs" && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: "440px",
+              height: "100%",
+              background: "rgba(17, 24, 39, 0.96)",
+              backdropFilter: "blur(20px)",
+              borderLeft: "1px solid var(--border-highlight)",
+              zIndex: 100,
+              padding: "24px",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "-10px 0 30px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "20px",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "1.15rem",
+                  fontWeight: 800,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <HelpCircle size={20} style={{ color: "var(--primary)" }} />{" "}
+                Glossary & FAQs
               </h3>
-              <button className="btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setActiveDrawer('none')}>
+              <button
+                className="btn-secondary"
+                style={{ padding: "4px 8px" }}
+                onClick={() => setActiveDrawer("none")}
+              >
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
               {faqs.map((faq, idx) => {
                 const isOpen = openFaqIndex === idx;
                 return (
-                  <div key={idx} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: isOpen ? 'rgba(15,23,42,0.8)' : 'transparent', overflow: 'hidden' }}>
-                    <button onClick={() => setOpenFaqIndex(isOpen ? -1 : idx)} style={{ width: '100%', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'transparent', border: 'none', color: 'var(--text-main)', fontWeight: 700, fontSize: '0.85rem', textAlign: 'left', cursor: 'pointer' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <div
+                    key={idx}
+                    style={{
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "var(--radius-md)",
+                      background: isOpen ? "rgba(15,23,42,0.8)" : "transparent",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <button
+                      onClick={() => setOpenFaqIndex(isOpen ? -1 : idx)}
+                      style={{
+                        width: "100%",
+                        padding: "12px 14px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--text-main)",
+                        fontWeight: 700,
+                        fontSize: "0.85rem",
+                        textAlign: "left",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          flexWrap: "wrap",
+                        }}
+                      >
                         {faq.question || faq.term}
                         {faq.category && (
-                          <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', fontWeight: 600 }}>
+                          <span
+                            style={{
+                              fontSize: "0.68rem",
+                              padding: "1px 6px",
+                              borderRadius: "10px",
+                              background: "rgba(59, 130, 246, 0.15)",
+                              color: "#60a5fa",
+                              fontWeight: 600,
+                            }}
+                          >
                             {faq.category}
                           </span>
                         )}
                       </span>
-                      {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      {isOpen ? (
+                        <ChevronUp size={16} />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )}
                     </button>
                     {isOpen && (
-                      <div style={{ padding: '0 14px 14px', color: 'var(--text-muted)', fontSize: '0.82rem', lineHeight: '1.5' }}>
+                      <div
+                        style={{
+                          padding: "0 14px 14px",
+                          color: "var(--text-muted)",
+                          fontSize: "0.82rem",
+                          lineHeight: "1.5",
+                        }}
+                      >
                         {faq.answer || faq.explanation}
                       </div>
                     )}

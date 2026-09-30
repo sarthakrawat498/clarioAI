@@ -52,8 +52,7 @@ def profile_agent_node(state: AgentState) -> AgentState:
         response_lines.append("")
 
     response_lines.append(
-        "💡 Next Steps: You can now ask me to recommend the best policies for your profile, "
-        "compare specific plans (e.g. HDFC Optima Secure vs Care Supreme), or ask coverage questions regarding your pre-existing conditions."
+        "💡 Next Steps: Use this profile to get policy recommendations, or switch to the premium, claim, coverage, or comparison routes for a narrower answer."
     )
 
     state["final_response"] = "\n".join(response_lines)

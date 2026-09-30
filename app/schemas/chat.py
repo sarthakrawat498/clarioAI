@@ -33,8 +33,11 @@ class ChatSessionOut(BaseModel):
 class ChatQueryRequest(BaseModel):
     message: str = Field(..., min_length=1)
     session_id: Optional[int] = None
+    profile_session_id: Optional[int] = None
     filter_company: Optional[str] = None
     filter_policy: Optional[str] = None
+    claim_amount: Optional[float] = Field(default=None, gt=0)
+    compare_policy_ids: Optional[List[int]] = None
 
 class ChatQueryResponse(BaseModel):
     session_id: int

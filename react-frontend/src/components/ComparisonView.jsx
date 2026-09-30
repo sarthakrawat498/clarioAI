@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { policyAPI } from '../api';
-import { Scale, ArrowRightLeft, Check, X } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { policyAPI } from "../api";
+import { Scale, ArrowRightLeft, Check, X } from "lucide-react";
 
 export const ComparisonView = () => {
   const { userProfile } = useAuth();
   const [policies, setPolicies] = useState([]);
-  const [p1Id, setP1Id] = useState('');
-  const [p2Id, setP2Id] = useState('');
+  const [p1Id, setP1Id] = useState("");
+  const [p2Id, setP2Id] = useState("");
   const [comparison, setComparison] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +22,9 @@ export const ComparisonView = () => {
       const affordablePolicies = Array.isArray(list)
         ? list.filter((policy) => {
             const premium = Number(policy.base_annual_premium_estimate);
-            return !budget || (!Number.isNaN(premium) && premium <= Number(budget));
+            return (
+              !budget || (!Number.isNaN(premium) && premium <= Number(budget))
+            );
           })
         : [];
       setPolicies(affordablePolicies);
@@ -42,7 +44,7 @@ export const ComparisonView = () => {
       const data = await policyAPI.comparePolicies(p1Id, p2Id);
       setComparison(data);
     } catch (e) {
-      console.error('Comparison error:', e);
+      console.error("Comparison error:", e);
     } finally {
       setLoading(false);
     }
@@ -51,23 +53,57 @@ export const ComparisonView = () => {
   const p1 = policies.find((p) => String(p.id || p.policy_id) === String(p1Id));
   const p2 = policies.find((p) => String(p.id || p.policy_id) === String(p2Id));
 
+  const displayValue = (
+    value,
+    fallback = "Not available in the provided policy data.",
+  ) => {
+    if (value === null || value === undefined || value === "") return fallback;
+    return value;
+  };
+
   return (
     <div>
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Scale size={24} style={{ color: 'var(--indigo)' }} />
+      <div style={{ marginBottom: "24px" }}>
+        <h2
+          style={{
+            fontSize: "1.4rem",
+            fontWeight: 800,
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <Scale size={24} style={{ color: "var(--indigo)" }} />
           Compare Health Policies
         </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-          Side-by-side feature, waiting period, room capping, and rider breakdown comparison.
+        <p
+          style={{
+            color: "var(--text-muted)",
+            fontSize: "0.9rem",
+            marginTop: "4px",
+          }}
+        >
+          Side-by-side feature, waiting period, room capping, and rider
+          breakdown comparison.
         </p>
       </div>
 
-      <div className="glass-card" style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr auto', gap: '16px', alignItems: 'center' }}>
+      <div className="glass-card" style={{ marginBottom: "24px" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto 1fr auto",
+            gap: "16px",
+            alignItems: "center",
+          }}
+        >
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Select Policy #1</label>
-            <select className="form-select" value={p1Id} onChange={(e) => setP1Id(e.target.value)}>
+            <select
+              className="form-select"
+              value={p1Id}
+              onChange={(e) => setP1Id(e.target.value)}
+            >
               {policies.map((p) => (
                 <option key={p.id || p.policy_id} value={p.id || p.policy_id}>
                   {p.insurer_name} - {p.policy_name}
@@ -76,13 +112,17 @@ export const ComparisonView = () => {
             </select>
           </div>
 
-          <div style={{ color: 'var(--cyan)', marginTop: '20px' }}>
+          <div style={{ color: "var(--cyan)", marginTop: "20px" }}>
             <ArrowRightLeft size={22} />
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Select Policy #2</label>
-            <select className="form-select" value={p2Id} onChange={(e) => setP2Id(e.target.value)}>
+            <select
+              className="form-select"
+              value={p2Id}
+              onChange={(e) => setP2Id(e.target.value)}
+            >
               {policies.map((p) => (
                 <option key={p.id || p.policy_id} value={p.id || p.policy_id}>
                   {p.insurer_name} - {p.policy_name}
@@ -91,51 +131,102 @@ export const ComparisonView = () => {
             </select>
           </div>
 
-          <button className="btn-primary" onClick={handleCompare} disabled={loading} style={{ marginTop: '20px' }}>
-            {loading ? 'Comparing...' : 'Compare Side-by-Side'}
+          <button
+            className="btn-primary"
+            onClick={handleCompare}
+            disabled={loading}
+            style={{ marginTop: "20px" }}
+          >
+            {loading ? "Comparing..." : "Compare Side-by-Side"}
           </button>
         </div>
       </div>
 
-      {(p1 && p2) && (
-        <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+      {p1 && p2 && (
+        <div className="glass-card" style={{ padding: 0, overflow: "hidden" }}>
           <div className="table-container">
             <table className="custom-table">
               <thead>
                 <tr>
-                  <th style={{ width: '30%' }}>Comparison Metric</th>
-                  <th style={{ width: '35%', color: 'var(--cyan)' }}>{p1.insurer_name} - {p1.policy_name}</th>
-                  <th style={{ width: '35%', color: 'var(--primary)' }}>{p2.insurer_name} - {p2.policy_name}</th>
+                  <th style={{ width: "30%" }}>Comparison Metric</th>
+                  <th style={{ width: "35%", color: "var(--cyan)" }}>
+                    {p1.insurer_name} - {p1.policy_name}
+                  </th>
+                  <th style={{ width: "35%", color: "var(--primary)" }}>
+                    {p2.insurer_name} - {p2.policy_name}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td><strong>Base Premium (Est.)</strong></td>
-                  <td>₹{(p1.base_annual_premium || 12000).toLocaleString()} / yr</td>
-                  <td>₹{(p2.base_annual_premium || 14000).toLocaleString()} / yr</td>
+                  <td>
+                    <strong>Base Premium (Est.)</strong>
+                  </td>
+                  <td>
+                    {p1.base_annual_premium_estimate !== null &&
+                    p1.base_annual_premium_estimate !== undefined
+                      ? `₹${Number(p1.base_annual_premium_estimate).toLocaleString()} / yr`
+                      : "Not available in the provided policy data."}
+                  </td>
+                  <td>
+                    {p2.base_annual_premium_estimate !== null &&
+                    p2.base_annual_premium_estimate !== undefined
+                      ? `₹${Number(p2.base_annual_premium_estimate).toLocaleString()} / yr`
+                      : "Not available in the provided policy data."}
+                  </td>
                 </tr>
                 <tr>
-                  <td><strong>Pre-Existing Disease (PED) Waiting</strong></td>
-                  <td>{p1.ped_waiting_period_months || 36} Months</td>
-                  <td>{p2.ped_waiting_period_months || 24} Months</td>
+                  <td>
+                    <strong>Pre-Existing Disease (PED) Waiting</strong>
+                  </td>
+                  <td>
+                    {p1.ped_waiting_period_months !== null &&
+                    p1.ped_waiting_period_months !== undefined
+                      ? `${p1.ped_waiting_period_months} Months`
+                      : "Not available in the provided policy data."}
+                  </td>
+                  <td>
+                    {p2.ped_waiting_period_months !== null &&
+                    p2.ped_waiting_period_months !== undefined
+                      ? `${p2.ped_waiting_period_months} Months`
+                      : "Not available in the provided policy data."}
+                  </td>
                 </tr>
                 <tr>
-                  <td><strong>Room Rent Capping</strong></td>
-                  <td>{p1.room_rent_capping || 'Single Private Room'}</td>
-                  <td>{p2.room_rent_capping || 'No Capping'}</td>
+                  <td>
+                    <strong>Room Rent Capping</strong>
+                  </td>
+                  <td>{displayValue(p1.room_rent_limit)}</td>
+                  <td>{displayValue(p2.room_rent_limit)}</td>
                 </tr>
                 <tr>
-                  <td><strong>Co-Payment Percentage</strong></td>
-                  <td>{p1.copay_percentage || 0}%</td>
-                  <td>{p2.copay_percentage || 0}%</td>
+                  <td>
+                    <strong>Co-Payment Percentage</strong>
+                  </td>
+                  <td>
+                    {p1.co_pay_percentage !== null &&
+                    p1.co_pay_percentage !== undefined
+                      ? `${p1.co_pay_percentage}%`
+                      : "Not available in the provided policy data."}
+                  </td>
+                  <td>
+                    {p2.co_pay_percentage !== null &&
+                    p2.co_pay_percentage !== undefined
+                      ? `${p2.co_pay_percentage}%`
+                      : "Not available in the provided policy data."}
+                  </td>
                 </tr>
                 <tr>
-                  <td><strong>Restoration Benefit</strong></td>
-                  <td>{p1.restoration_benefit ? '100% Automatic Unlimited' : 'Standard'}</td>
-                  <td>{p2.restoration_benefit ? '100% Automatic Unlimited' : 'Standard'}</td>
+                  <td>
+                    <strong>Restoration Benefit</strong>
+                  </td>
+                  <td>{displayValue(p1.restoration_benefit)}</td>
+                  <td>{displayValue(p2.restoration_benefit)}</td>
                 </tr>
                 <tr>
-                  <td><strong>Day Care Treatments</strong></td>
+                  <td>
+                    <strong>Day Care Treatments</strong>
+                  </td>
                   <td>All Day Care Covered</td>
                   <td>All Day Care Covered</td>
                 </tr>

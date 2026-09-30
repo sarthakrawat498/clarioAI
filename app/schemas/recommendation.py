@@ -10,6 +10,8 @@ class PremiumEstimateRequest(BaseModel):
     pre_existing_diseases: List[str] = Field(default_factory=list)
     tobacco_user: bool = Field(default=False)
     add_on_riders: List[str] = Field(default_factory=list) # e.g. ["Critical Illness", "Hospital Cash", "Maternity"]
+    policy_id: Optional[int] = None
+    policy_name: Optional[str] = None
 
 class PremiumBreakdownItem(BaseModel):
     name: str

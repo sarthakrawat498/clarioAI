@@ -74,9 +74,8 @@ def compare_policies(
             matrix[label][p.policy_name] = val
 
     verdict = (
-        f"Compared {len(selected_policies)} policies. "
-        f"For highest feature coverage with instant 2x sum insured, choose '{selected_policies[0].policy_name}'. "
-        f"For high cumulative bonus accumulation, consider '{selected_policies[1].policy_name}'."
+        f"Compared {len(selected_policies)} policies using structured policy data from the current catalogue. "
+        "See the matrix below for policy-specific differences and unavailable fields."
     )
 
     policies_out = [PolicyOut.model_validate(p) for p in selected_policies]

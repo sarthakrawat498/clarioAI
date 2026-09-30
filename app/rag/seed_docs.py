@@ -47,6 +47,16 @@ def _read_document_text(file_path: str) -> str:
             return file_handle.read()
 
 
+def _read_pdf_pages(file_path: str) -> List[str]:
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(file_path)
+        return [(page.extract_text() or "") for page in reader.pages]
+    except Exception as e:
+        print(f"[SeedDocs] Warning reading PDF pages {file_path}: {e}")
+        return []
+
+
 def _canonical_name(value: str, aliases: Dict[str, str]) -> str:
     lowered = value.lower()
     for needle, canonical in aliases.items():
@@ -79,6 +89,60 @@ def _extract_policy_name(text: str, filename: str) -> str:
     return _canonical_name(stem, POLICY_ALIASES)
 
 
+def _discover_embedded_policy_documents(file_path: str, filename: str) -> List[Dict[str, str]]:
+    pages = _read_pdf_pages(file_path)
+    if not pages:
+        return []
+
+    first_page = pages[0].lower()
+    if "six independent policy records" not in first_page and "synthetic policy data" not in first_page:
+        return []
+
+    embedded_entries: List[Dict[str, str]] = []
+    current_pages: List[str] = []
+    current_numbers: List[int] = []
+
+    def flush_current():
+        if not current_pages:
+            return
+        combined = "\n\n".join(current_pages)
+        header_match = re.search(
+            r"POLICY\s+(\d+)\s+([^\n]+)\s+([^\n]+)",
+            combined,
+            flags=re.IGNORECASE | re.MULTILINE,
+        )
+        if not header_match:
+            return
+        policy_number = header_match.group(1)
+        company = _clean_line(header_match.group(2))
+        policy_name = _clean_line(header_match.group(3))
+        embedded_entries.append({
+            "company": company,
+            "policy_name": policy_name,
+            "filename": f"{filename}#policy_{policy_number}",
+            "file_path": file_path,
+            "description": current_pages[0].splitlines()[0].strip()[:200],
+            "extracted_text": combined,
+            "source_pages": current_numbers[:],
+        })
+
+    for page_idx, page_text in enumerate(pages, start=1):
+        if re.search(r"\bPOLICY\s+\d+\b", page_text, flags=re.IGNORECASE):
+            flush_current()
+            current_pages = [page_text]
+            current_numbers = [page_idx]
+        elif current_pages:
+            current_pages.append(page_text)
+            current_numbers.append(page_idx)
+
+    flush_current()
+    return embedded_entries
+
+
+def _clean_line(value: str) -> str:
+    return " ".join((value or "").split()).strip()
+
+
 def discover_policy_documents() -> List[Dict[str, str]]:
     """Discover policy files (PDF or TXT) from the sample policy directory."""
     if not os.path.isdir(SAMPLE_DOCS_DIR):
@@ -93,6 +157,16 @@ def discover_policy_documents() -> List[Dict[str, str]]:
 
         file_path = os.path.join(SAMPLE_DOCS_DIR, filename)
         if not os.path.isfile(file_path):
+            continue
+
+        embedded_docs = _discover_embedded_policy_documents(file_path, filename) if filename.lower().endswith(".pdf") else []
+        if embedded_docs:
+            for embedded in embedded_docs:
+                dedupe_key = (embedded["company"].lower(), embedded["policy_name"].lower())
+                if dedupe_key in seen:
+                    continue
+                seen.add(dedupe_key)
+                discovered.append(embedded)
             continue
 
         text = _read_document_text(file_path)

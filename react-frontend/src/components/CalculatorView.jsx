@@ -10,7 +10,7 @@ export const CalculatorView = () => {
     coverage_type: 'Family Floater',
     sum_insured: 1000000,
     tobacco_user: false,
-    has_pre_existing_diseases: false,
+    pre_existing_diseases: [],
   });
 
   const [estimate, setEstimate] = useState(null);
@@ -21,10 +21,13 @@ export const CalculatorView = () => {
     setLoading(true);
     try {
       const res = await premiumAPI.estimatePremium({
-        ...formData,
         age: Number(formData.age),
+        city_tier: formData.city_tier,
+        coverage_type: formData.coverage_type,
         family_members_count: Number(formData.family_members_count),
         sum_insured: Number(formData.sum_insured),
+        tobacco_user: formData.tobacco_user,
+        pre_existing_diseases: formData.pre_existing_diseases,
       });
       setEstimate(res);
     } catch (err) {
@@ -139,8 +142,8 @@ export const CalculatorView = () => {
                 <label className="form-label">Pre-Existing Conditions</label>
                 <select
                   className="form-select"
-                  value={formData.has_pre_existing_diseases ? 'yes' : 'no'}
-                  onChange={(e) => setFormData({ ...formData, has_pre_existing_diseases: e.target.value === 'yes' })}
+                  value={formData.pre_existing_diseases && formData.pre_existing_diseases.length > 0 ? 'yes' : 'no'}
+                  onChange={(e) => setFormData({ ...formData, pre_existing_diseases: e.target.value === 'yes' ? ['Other Pre-Existing Condition'] : [] })}
                 >
                   <option value="no">No Declared PED</option>
                   <option value="yes">Declared PED (+20% Surcharge)</option>
@@ -181,26 +184,25 @@ export const CalculatorView = () => {
                 📊 Actuarial Breakdown Matrix:
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 'var(--radius-md)', fontSize: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Base Premium Rate:</span>
-                  <strong>₹{(estimate.breakdown?.base_premium || 10000).toLocaleString()}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Age Risk Multiplier:</span>
-                  <strong>{estimate.breakdown?.age_multiplier || '1.25x'}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>City Tier Adjustment:</span>
-                  <strong>{estimate.breakdown?.city_tier_multiplier || '1.15x'}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Pre-Existing Disease Surcharge:</span>
-                  <strong>{estimate.breakdown?.ped_surcharge || '0%'}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>GST Tax (18%):</span>
-                  <strong>₹{(estimate.breakdown?.gst_tax || 0).toLocaleString()}</strong>
-                </div>
+                {estimate.breakdown && Array.isArray(estimate.breakdown) && estimate.breakdown.length > 0 ? (
+                  estimate.breakdown.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span title={item.description}>{item.name}:</span>
+                      <strong>₹{(item.amount || 0).toLocaleString()}</strong>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Base Premium Rate:</span>
+                      <strong>₹{(estimate.base_premium || 10000).toLocaleString()}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>GST Tax (18%):</span>
+                      <strong>₹{(estimate.gst_18_percent || 0).toLocaleString()}</strong>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}

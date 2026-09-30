@@ -5,12 +5,12 @@ import { Stethoscope, CheckCircle2, XCircle, AlertCircle, FileText } from 'lucid
 export const ClaimsView = () => {
   const [formData, setFormData] = useState({
     policy_name: 'Star Comprehensive Insurance',
-    disease_or_procedure: 'Knee Replacement Surgery',
-    hospital_type: 'Network Hospital (Tier 1)',
-    room_category: 'Single Deluxe Room',
+    treatment_name: 'Knee Replacement Surgery',
+    hospital_type: 'Network',
+    room_category_chosen: 'Single Private Room',
     claimed_amount: 250000,
-    policy_tenure_months: 24,
-    pre_existing: false,
+    policy_holding_duration_months: 24,
+    is_pre_existing_condition: false,
   });
 
   const [result, setResult] = useState(null);
@@ -23,7 +23,7 @@ export const ClaimsView = () => {
       const resp = await claimAPI.checkEligibility({
         ...formData,
         claimed_amount: Number(formData.claimed_amount),
-        policy_tenure_months: Number(formData.policy_tenure_months),
+        policy_holding_duration_months: Number(formData.policy_holding_duration_months),
       });
       setResult(resp);
     } catch (err) {
@@ -69,8 +69,8 @@ export const ClaimsView = () => {
               <input
                 type="text"
                 className="form-input"
-                value={formData.disease_or_procedure}
-                onChange={(e) => setFormData({ ...formData, disease_or_procedure: e.target.value })}
+                value={formData.treatment_name}
+                onChange={(e) => setFormData({ ...formData, treatment_name: e.target.value })}
                 required
               />
             </div>
@@ -91,8 +91,8 @@ export const ClaimsView = () => {
               <input
                 type="number"
                 className="form-input"
-                value={formData.policy_tenure_months}
-                onChange={(e) => setFormData({ ...formData, policy_tenure_months: e.target.value })}
+                value={formData.policy_holding_duration_months}
+                onChange={(e) => setFormData({ ...formData, policy_holding_duration_months: e.target.value })}
                 required
               />
             </div>
@@ -101,8 +101,8 @@ export const ClaimsView = () => {
               <label className="form-label">Is this a Pre-Existing Disease (PED)?</label>
               <select
                 className="form-select"
-                value={formData.pre_existing ? 'yes' : 'no'}
-                onChange={(e) => setFormData({ ...formData, pre_existing: e.target.value === 'yes' })}
+                value={formData.is_pre_existing_condition ? 'yes' : 'no'}
+                onChange={(e) => setFormData({ ...formData, is_pre_existing_condition: e.target.value === 'yes' })}
               >
                 <option value="no">No - Acute / New Medical Condition</option>
                 <option value="yes">Yes - Pre-Existing Illness</option>
@@ -148,7 +148,7 @@ export const ClaimsView = () => {
                     {result.status || (result.is_eligible ? 'CLAIM APPROVED' : 'CLAIM REJECTED / SUBJECT TO WAITING PERIOD')}
                   </div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                    Estimated Payable Amount: <strong style={{ color: 'var(--text-main)' }}>₹{(result.estimated_payout || 0).toLocaleString()}</strong>
+                    Estimated Payable Amount: <strong style={{ color: 'var(--text-main)' }}>₹{(result.estimated_approved_amount || 0).toLocaleString()}</strong>
                   </div>
                 </div>
               </div>
@@ -156,18 +156,17 @@ export const ClaimsView = () => {
               <div className="form-group">
                 <label className="form-label">Evaluated Rule Reason</label>
                 <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '12px', borderRadius: 'var(--radius-md)', fontSize: '0.88rem' }}>
-                  {result.reason || result.eligibility_notes || 'All clause conditions validated successfully.'}
+                  {result.explanation || result.eligibility_notes || 'All clause conditions validated successfully.'}
                 </div>
               </div>
 
-              {result.deductions && (
+              {result.deductions !== undefined && typeof result.deductions === 'number' && (
                 <div style={{ marginTop: '16px' }}>
                   <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>
-                    Deductions & Copay Breakdown:
+                    Total Deductions & Copay:
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: 'var(--radius-md)', fontSize: '0.85rem' }}>
-                    <div>Copay Deduction: ₹{(result.deductions?.copay || 0).toLocaleString()}</div>
-                    <div>Room Rent Capping Excess: ₹{(result.deductions?.room_excess || 0).toLocaleString()}</div>
+                    <div>Amount to be Deducted: ₹{(result.deductions).toLocaleString()}</div>
                   </div>
                 </div>
               )}

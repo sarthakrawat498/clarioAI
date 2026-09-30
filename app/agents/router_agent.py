@@ -31,27 +31,35 @@ def router_agent_node(state: AgentState) -> AgentState:
     query = state.get("query", "").strip()
     query_lower = query.lower()
     messages = state.get("messages", []) or []
+    claim_amount = state.get("claim_amount")
     
     intent = "FAQ" # default fallback
 
+    if claim_amount is not None:
+        intent = "CLAIM"
+
     last_assistant = _last_assistant_message(messages)
-    if _is_affirmative_followup(query_lower) and last_assistant and "salesagent" in (last_assistant.get("agent_name", "").lower()):
+    if intent != "CLAIM" and _is_affirmative_followup(query_lower) and last_assistant and "salesagent" in (last_assistant.get("agent_name", "").lower()):
         intent = "COMPARISON"
 
     # Heuristic intent classification for fast, robust routing
-    if intent != "COMPARISON" and any(k in query_lower for k in ["premium", "estimate", "cost", "price", "annual cost", "how much", "quote", "rate", "calculator"]):
+    if intent != "CLAIM" and intent != "COMPARISON" and any(k in query_lower for k in ["premium", "estimate", "cost", "price", "annual cost", "how much", "quote", "rate", "calculator"]):
         intent = "PREMIUM"
-    elif any(k in query_lower for k in ["compare", "vs", "versus", "difference between", "which is better"]):
+    elif intent != "CLAIM" and any(k in query_lower for k in ["compare", "vs", "versus", "difference between", "which is better"]):
         intent = "COMPARISON"
-    elif any(k in query_lower for k in ["recommend", "best policy", "suggest", "which plan should i buy", "suitable for me", "buy insurance", "sales"]):
+    elif intent != "CLAIM" and any(k in query_lower for k in ["recommend", "best policy", "suggest", "which plan should i buy", "suitable for me", "buy insurance", "sales"]):
         intent = "SALES"
-    elif any(k in query_lower for k in ["claim", "eligible", "reimbursement", "cashless", "cataract", "hospitalized", "approval"]):
+    elif intent != "CLAIM" and any(k in query_lower for k in ["claim", "eligible", "reimbursement", "cashless", "cataract", "hospitalized", "approval"]):
         intent = "CLAIM"
-    elif any(k in query_lower for k in ["my age", "my profile", "i have diabetes", "hypertension", "smoke", "budget", "family floater"]):
+    elif intent != "CLAIM" and any(k in query_lower for k in ["my age", "my profile", "i have diabetes", "hypertension", "smoke", "budget", "family floater"]):
         intent = "PROFILE"
-    elif any(k in query_lower for k in ["cover", "exclusion", "waiting period", "room rent", "co-pay", "copay", "ped", "daycare", "maternity", "star health", "hdfc", "niva", "care supreme", "aspire", "activ"]):
+    elif intent != "CLAIM" and any(k in query_lower for k in ["catalog", "catalogue", "policy catalogue", "policy catalog", "available policies", "show policies"]):
+        intent = "CATALOG"
+    elif intent != "CLAIM" and any(k in query_lower for k in ["ped waiting period", "pre-existing disease waiting period", "ped status", "pre-existing disease", "waiting period for ped"]):
+        intent = "PED"
+    elif intent != "CLAIM" and any(k in query_lower for k in ["cover", "exclusion", "waiting period", "room rent", "co-pay", "copay", "ped", "daycare", "maternity", "star health", "hdfc", "niva", "care supreme", "aspire", "activ"]):
         intent = "COVERAGE"
-    elif any(k in query_lower for k in ["what is", "meaning of", "explain", "term", "no claim bonus", "ncb", "restoration", "tpa", "grace period"]):
+    elif intent != "CLAIM" and any(k in query_lower for k in ["what is", "meaning of", "explain", "term", "no claim bonus", "ncb", "restoration", "tpa", "grace period"]):
         intent = "FAQ"
 
     # LLM enhancement if key available
@@ -74,13 +82,15 @@ def router_agent_node(state: AgentState) -> AgentState:
                 "- COMPARISON (requesting side-by-side comparison of 2 or more insurance policies)\n"
                 "- SALES (asking for best plan recommendations or buying advice based on profile)\n"
                 "- CLAIM (asking about claim eligibility, approval likelihood, or reimbursement deductions)\n"
+                "- PED (asking for PED waiting period or pre-existing disease waiting period)\n"
+                "- CATALOG (asking to see available policies, the policy catalogue, or the policy list)\n"
                 "- FAQ (asking for definition of insurance terms or general insurance guidance)\n\n"
                 f"User Request: {query}\n"
                 "Return ONLY the category name."
             )
             res = llm.invoke(prompt)
             classified = res.content.strip().upper()
-            if classified in ["PREMIUM", "PROFILE", "COVERAGE", "COMPARISON", "SALES", "CLAIM", "FAQ"]:
+            if classified in ["PREMIUM", "PROFILE", "COVERAGE", "COMPARISON", "SALES", "CLAIM", "PED", "CATALOG", "FAQ"]:
                 intent = classified
         except Exception as e:
             logger.warning(f"Router LLM classification failed, using heuristic result '{intent}': {e}")

@@ -26,9 +26,16 @@ def chat_agent_node(state: AgentState) -> AgentState:
     Chat Agent: Answers general health insurance questions, terminology, and FAQs using PDF RAG context & LLM.
     """
     query = state.get("query", "").strip()
+    filter_company = state.get("filter_company")
+    filter_policy = state.get("filter_policy")
 
     # RAG Vector Search for relevant policy chunks
-    retrieved = vector_store_manager.query(query_text=query, n_results=4)
+    retrieved = vector_store_manager.query(
+        query_text=query,
+        n_results=4,
+        company_filter=filter_company,
+        policy_filter=filter_policy,
+    )
     context_blocks = []
     sources = []
     for doc in retrieved:
@@ -59,8 +66,8 @@ def chat_agent_node(state: AgentState) -> AgentState:
                 llm_kwargs["base_url"] = settings.OPENAI_BASE_URL.strip()
             llm = ChatOpenAI(**llm_kwargs)
             prompt = (
-                "You are an empathetic, highly knowledgeable AI Health Insurance Advisor. "
-                "Answer the user's health insurance question clearly, accurately, and thoroughly for a client-ready, production-level experience.\n\n"
+                "You are the generic fallback health insurance assistant. Answer only broad FAQs or general policy navigation questions. "
+                "If the user asks for premium calculation, claim eligibility, plan comparison, coverage clauses, recommendations, or the policy catalogue, direct them to the dedicated feature or view instead of improvising.\n\n"
                 f"--- RETRIEVED PDF POLICY CONTEXT ---\n{combined_context if combined_context else 'No specific policy chunk retrieved.'}\n-----------------------------------\n\n"
                 f"User Question: {query}\n\n"
                 "CRITICAL FORMATTING INSTRUCTIONS FOR PRODUCTION VISUALIZATION:\n"
@@ -79,11 +86,11 @@ def chat_agent_node(state: AgentState) -> AgentState:
 
     if not answer:
         answer = (
-            f"### 💡 Health Insurance Assistant\n\n"
-            f"Here is information regarding your query: **\"{query}\"**\n\n"
-            "Health insurance plans differ in their features, coverage terms, room rent limits, and waiting periods. "
-            "You can ask me to compare specific policies (Niva Bupa Aspire, Care Supreme, HDFC Optima Secure, Aditya Birla Activ One) "
-            "or check custom claim scenarios!"
+            f"### 💡 General Insurance Help\n\n"
+            f"I can help with general policy questions, but this query looks more specific: **\"{query}\"**\n\n"
+            "For premium estimates, use the premium calculator. For claim eligibility, use the claim checker. "
+            "For side-by-side policy analysis, use the comparison flow. For plan selection, use the recommendations route. "
+            "For the full policy list, open the Policy Catalogue view."
         )
 
     state["final_response"] = answer

@@ -5,7 +5,7 @@ from app.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.schemas.profile import ProfileOut, ProfileUpdate
-from app.services.profile_service import get_user_profile, update_user_profile
+from app.services.profile_service import get_user_profile, update_user_profile, get_latest_profile_snapshot
 
 router = APIRouter(prefix="/profile", tags=["User Profile"])
 
@@ -16,6 +16,7 @@ def read_profile(
 ):
     """Retrieve profile for the logged in user."""
     p = get_user_profile(db, current_user.id)
+    latest_snapshot = get_latest_profile_snapshot(db, current_user.id)
     # Parse pre_existing_diseases JSON string if needed
     peds = p.pre_existing_diseases
     if isinstance(peds, str):
@@ -27,6 +28,7 @@ def read_profile(
     return ProfileOut(
         id=p.id,
         user_id=p.user_id,
+        active_profile_session_id=latest_snapshot.id if latest_snapshot else None,
         age=p.age,
         gender=p.gender,
         city=p.city,
@@ -50,6 +52,7 @@ def update_profile(
 ):
     """Update profile attributes for current user."""
     p = update_user_profile(db, current_user.id, profile_in)
+    latest_snapshot = get_latest_profile_snapshot(db, current_user.id)
     peds = p.pre_existing_diseases
     if isinstance(peds, str):
         try:
@@ -60,6 +63,7 @@ def update_profile(
     return ProfileOut(
         id=p.id,
         user_id=p.user_id,
+        active_profile_session_id=latest_snapshot.id if latest_snapshot else None,
         age=p.age,
         gender=p.gender,
         city=p.city,

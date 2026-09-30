@@ -68,8 +68,8 @@ def coverage_agent_node(state: AgentState) -> AgentState:
                 llm_kwargs["base_url"] = settings.OPENAI_BASE_URL.strip()
             llm = ChatOpenAI(**llm_kwargs)
             prompt = (
-                "You are an expert Health Insurance RAG Assistant. Your job is to answer the user's query STRICTLY "
-                "based on the provided policy documents below. DO NOT make up information or use outside assumptions.\n\n"
+                "You are a policy coverage specialist. Answer only questions about clauses, exclusions, waiting periods, room rent limits, co-pay, and benefit wording. "
+                "Do not answer recommendation, premium, or claim-eligibility calculations here.\n\n"
                 f"--- RETRIEVED POLICY DOCUMENTS ---\n{combined_context}\n-----------------------------------\n\n"
                 f"User Question: {query}\n\n"
                 "CRITICAL FORMATTING INSTRUCTIONS FOR PRODUCTION VISUALIZATION:\n"
